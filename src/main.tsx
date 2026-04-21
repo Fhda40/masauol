@@ -1,0 +1,16 @@
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router'
+import { TRPCProvider } from '@/providers/trpc'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <BrowserRouter>
+    <TRPCProvider>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </TRPCProvider>
+  </BrowserRouter>,
+)
