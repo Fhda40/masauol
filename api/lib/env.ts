@@ -16,4 +16,7 @@ export const env = {
   openaiApiKey: required("OPENAI_API_KEY"),
   googleClientId: required("GOOGLE_CLIENT_ID"),
   adminPassword: required("ADMIN_PASSWORD"),
+  smtpUser: required("SMTP_USER"),
+  smtpPass: required("SMTP_PASS"),
+  notificationEmail: required("NOTIFICATION_EMAIL"),
 };

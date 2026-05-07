@@ -3,6 +3,7 @@ import { createRouter, publicQuery, adminProtected } from "../middleware";
 import { getDb } from "../queries/connection";
 import { leads, conversations } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
+import { sendLeadNotification } from "../lib/mailer";
 
 export const leadRouter = createRouter({
   create: publicQuery
@@ -46,6 +47,9 @@ export const leadRouter = createRouter({
         .from(leads)
         .where(eq(leads.id, id))
         .limit(1);
+
+      // Send email notification (non-blocking)
+      sendLeadNotification(lead).catch(() => {});
 
       return lead;
     }),
