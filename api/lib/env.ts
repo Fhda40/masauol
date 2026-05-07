@@ -15,4 +15,5 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   openaiApiKey: required("OPENAI_API_KEY"),
   googleClientId: required("GOOGLE_CLIENT_ID"),
+  adminPassword: required("ADMIN_PASSWORD"),
 };

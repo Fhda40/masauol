@@ -8,7 +8,7 @@ import { env } from "./lib/env";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
-app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+app.use(bodyLimit({ maxSize: 1 * 1024 * 1024 })); // 1MB max
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",

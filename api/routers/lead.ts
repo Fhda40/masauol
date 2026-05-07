@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "../middleware";
+import { createRouter, publicQuery, adminProtected } from "../middleware";
 import { getDb } from "../queries/connection";
 import { leads, conversations } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -50,14 +50,14 @@ export const leadRouter = createRouter({
       return lead;
     }),
 
-  list: publicQuery.query(async () => {
+  list: adminProtected.query(async () => {
     return getDb()
       .select()
       .from(leads)
       .orderBy(desc(leads.createdAt));
   }),
 
-  update: publicQuery
+  update: adminProtected
     .input(
       z.object({
         id: z.number(),

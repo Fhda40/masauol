@@ -38,14 +38,23 @@ export const conversationRouter = createRouter({
     }),
 
   get: publicQuery
-    .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
+    .input(z.object({ id: z.number(), deviceFingerprint: z.string().optional() }))
+    .query(async ({ input, ctx }) => {
       const [conv] = await getDb()
         .select()
         .from(conversations)
         .where(eq(conversations.id, input.id))
         .limit(1);
       if (!conv) return null;
+
+      const token = ctx.req.headers.get("x-session-token");
+      const user = await getUserFromToken(token);
+
+      const ownsConversation = user
+        ? conv.userId === user.id
+        : conv.deviceFingerprint === input.deviceFingerprint;
+
+      if (!ownsConversation) return null;
 
       const msgs = await getDb()
         .select()
@@ -111,6 +120,7 @@ export const conversationRouter = createRouter({
     .input(
       z.object({
         id: z.number(),
+        deviceFingerprint: z.string().optional(),
         title: z.string().optional(),
         status: z.enum(["active", "archived", "converted"]).optional(),
         caseType: z
@@ -128,19 +138,34 @@ export const conversationRouter = createRouter({
           .optional(),
       })
     )
-    .mutation(async ({ input }) => {
-      const { id, ...updates } = input;
-      await getDb()
-        .update(conversations)
-        .set({ ...updates, updatedAt: new Date() })
-        .where(eq(conversations.id, id));
+    .mutation(async ({ input, ctx }) => {
+      const { id, deviceFingerprint, ...updates } = input;
 
       const [conv] = await getDb()
         .select()
         .from(conversations)
         .where(eq(conversations.id, id))
         .limit(1);
+      if (!conv) throw new TRPCError({ code: "NOT_FOUND" });
 
-      return conv;
+      const token = ctx.req.headers.get("x-session-token");
+      const user = await getUserFromToken(token);
+      const ownsConversation = user
+        ? conv.userId === user.id
+        : conv.deviceFingerprint === deviceFingerprint;
+      if (!ownsConversation) throw new TRPCError({ code: "FORBIDDEN" });
+
+      await getDb()
+        .update(conversations)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(conversations.id, id));
+
+      const [updated] = await getDb()
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, id))
+        .limit(1);
+
+      return updated;
     }),
 });

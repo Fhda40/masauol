@@ -8,8 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/providers/trpc";
 
-const ADMIN_PASS = "masoul@2026";
-
 const riskLabels: Record<string, string> = {
   low: "منخفضة",
   medium: "متوسطة",
@@ -32,10 +30,20 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function Admin() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem("masoul_admin") === "1");
+  const [authed, setAuthed] = useState(() => !!sessionStorage.getItem("masoul_admin_token"));
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const loginMutation = trpc.admin.login.useMutation({
+    onSuccess: (data) => {
+      sessionStorage.setItem("masoul_admin_token", data.token);
+      setAuthed(true);
+    },
+    onError: () => {
+      setPwError(true);
+      setPw("");
+    },
+  });
   const { data: leads, isLoading } = trpc.lead.list.useQuery(undefined, { enabled: authed });
 
   if (!authed) {
@@ -55,13 +63,7 @@ export default function Admin() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (pw === ADMIN_PASS) {
-                  sessionStorage.setItem("masoul_admin", "1");
-                  setAuthed(true);
-                } else {
-                  setPwError(true);
-                  setPw("");
-                }
+                loginMutation.mutate({ password: pw });
               }}
               className="space-y-4"
             >

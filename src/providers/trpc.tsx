@@ -22,8 +22,10 @@ const trpcClient = trpc.createClient({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 180_000);
         const sessionToken = localStorage.getItem("session_token");
+        const adminToken = sessionStorage.getItem("masoul_admin_token");
         const headers = new Headers(init?.headers);
         if (sessionToken) headers.set("x-session-token", sessionToken);
+        if (adminToken) headers.set("x-admin-token", adminToken);
         return globalThis
           .fetch(input, {
             ...(init ?? {}),

@@ -5,10 +5,12 @@ import { chatRouter } from "./routers/chat";
 import { leadRouter } from "./routers/lead";
 import { legalRouter } from "./routers/legal";
 import { authRouter } from "./routers/auth";
+import { adminRouter } from "./routers/admin";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   auth: authRouter,
+  admin: adminRouter,
   conversation: conversationRouter,
   message: messageRouter,
   chat: chatRouter,

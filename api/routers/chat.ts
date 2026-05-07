@@ -2,12 +2,27 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createRouter, publicQuery } from "../middleware";
 import { getDb } from "../queries/connection";
-import { messages, conversations, legalChunks } from "@db/schema";
+import { messages, conversations, legalChunks, users } from "@db/schema";
 import { eq, asc, count } from "drizzle-orm";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 
 const MAX_MESSAGES_PER_CONVERSATION = Infinity; // مؤقت — بدون حد للتجربة
+
+// ── Rate limiter: max 10 requests per minute per key ──
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(key: string): void {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
+    return;
+  }
+  if (entry.count >= 10) {
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "تجاوزت الحد المسموح (10 رسائل/دقيقة). حاول بعد قليل." });
+  }
+  entry.count++;
+}
 // ═══════════════════════════════════════════════════════════════
 //  MASOUL LEGAL AI — KB-REQUIRED REASONING PIPELINE
 //  NO legal analysis without KB retrieval.
@@ -355,8 +370,34 @@ const CASE_INSTRUCTIONS: Record<string, string> = {
 
 export const chatRouter = createRouter({
   send: publicQuery
-    .input(z.object({ conversationId: z.number(), message: z.string() }))
-    .mutation(async ({ input }) => {
+    .input(z.object({
+      conversationId: z.number(),
+      message: z.string().min(1).max(5000),
+      deviceFingerprint: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // ── Ownership check ──
+      const [conv] = await getDb()
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, input.conversationId))
+        .limit(1);
+      if (!conv) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sessionToken = ctx.req.headers.get("x-session-token");
+      let ownerId: string;
+      if (sessionToken) {
+        const [user] = await getDb().select({ id: users.id }).from(users).where(eq(users.sessionToken, sessionToken)).limit(1);
+        if (!user || conv.userId !== user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        ownerId = `user:${user.id}`;
+      } else {
+        if (conv.deviceFingerprint !== input.deviceFingerprint) throw new TRPCError({ code: "FORBIDDEN" });
+        ownerId = `fp:${input.deviceFingerprint}`;
+      }
+
+      // ── Rate limit ──
+      checkRateLimit(ownerId);
+
       // ── Check message limit ──
       const [{ value: msgCount }] = await getDb()
         .select({ value: count() })
