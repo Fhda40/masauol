@@ -1,755 +1,702 @@
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router";
-import { Brain, ChevronLeft, Plus, FileText, Phone, Sparkles, Shield, Clock, BookOpen, Scale, ArrowLeft } from "lucide-react";
-import { trpc } from "@/providers/trpc";
-import { getDeviceFingerprint } from "@/lib/fingerprint";
-import DocumentUploadZone from "@/components/DocumentUploadZone";
-import AnimatedCounter from "@/components/AnimatedCounter";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import {
+  Scale, Shield, Briefcase, Gavel, Lock,
+  Brain, ArrowLeft, ChevronDown, Star,
+  FileSearch, Clock, CheckCircle, Zap,
+} from "lucide-react";
+import HeroScene from "@/components/HeroScene";
 
-/* ── Rich Text ── */
-function RichText({ text }: { text: string }) {
-  const lines = text.split(/\n+/);
-  return (
-    <div className="space-y-1.5">
-      {lines.map((line, i) => {
-        if (!line.trim()) return null;
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <p key={i} className="text-sm leading-relaxed" style={{ color: "#9A8F7A" }}>
-            {parts.map((part, j) =>
-              part.startsWith("**") && part.endsWith("**")
-                ? <strong key={j} className="font-semibold" style={{ color: "#F0EAD8" }}>{part.slice(2, -2)}</strong>
-                : <span key={j}>{part}</span>
-            )}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
+gsap.registerPlugin(ScrollTrigger);
 
-/* ── Types ── */
-interface AnalysisSection { key: string; label: string; content: string; }
-interface ClassificationData { caseType: string; riskLevel: string; urgencyLevel: string; }
-
-const SECTION_DEFS: Omit<AnalysisSection, "content">[] = [
-  { key: "فهم_الحالة", label: "فهم الحالة" },
-  { key: "التكييف_القانوني", label: "التكييف القانوني" },
-  { key: "العناصر_النظامية", label: "العناصر النظامية" },
-  { key: "نقاط_القوة", label: "نقاط القوة" },
-  { key: "نقاط_الضعف", label: "نقاط الضعف" },
-  { key: "المخاطر_القانونية", label: "المخاطر القانونية" },
-  { key: "السيناريوهات_المحتملة", label: "السيناريوهات" },
-  { key: "الاستراتيجية_الموصى_بها", label: "الاستراتيجية" },
-  { key: "الإثباتات_المطلوبة", label: "الإثباتات المطلوبة" },
-  { key: "خطة_العمل", label: "خطة العمل" },
-  { key: "رؤى_استراتيجية", label: "رؤى استراتيجية" },
+/* ── Data ── */
+const STATS = [
+  { value: 500, suffix: "+", label: "قضية مُعالَجة" },
+  { value: 20,  suffix: "+", label: "سنة خبرة قانونية" },
+  { value: 98,  suffix: "%", label: "نسبة رضا العملاء" },
+  { value: 7,   suffix: "",  label: "أنظمة قانونية" },
 ];
 
-const QUICK_PROMPTS = [
-  "تعرضت لابتزاز إلكتروني عبر واتساب",
-  "شركتي فصلتني بدون سبب بعد ٣ سنوات",
-  "لدي ديون مستحقة وتم حجز راتبي",
-  "شخص سرق حسابي البنكي",
+const SERVICES = [
+  { icon: Shield,      color: "#4EA8DE", num: "01", title: "الجرائم الإلكترونية",   desc: "ابتزاز، احتيال، تشهير، اختراق — تحليل قانوني فوري بمواد نظامية محددة" },
+  { icon: Briefcase,   color: "#C9A84C", num: "02", title: "التنفيذ والديون",        desc: "إجراءات التنفيذ، حجز الأموال، منع السفر، شيكات بدون رصيد" },
+  { icon: Gavel,       color: "#17B26A", num: "03", title: "القضايا العمالية",       desc: "فصل تعسفي، مستحقات مالية، نزاعات عقود العمل، إصابات العمل" },
+  { icon: Scale,       color: "#9B59B6", num: "04", title: "الأحوال الشخصية",       desc: "طلاق، حضانة، نفقة، ميراث — تحليل مبني على نظام الأحوال الشخصية" },
+  { icon: Lock,        color: "#E74C3C", num: "05", title: "المخدرات والجرائم الجنائية", desc: "حيازة، اتجار، تعاطٍ، حقوق المتهم وإجراءات التقاضي" },
+  { icon: FileSearch,  color: "#F39C12", num: "06", title: "القضايا التجارية",      desc: "نزاعات الشركات، عقود تجارية، إفلاس، تأسيس شركات وحوكمة" },
 ];
-
-const RISK_LABELS: Record<string, string> = { low: "منخفض", medium: "متوسط", high: "عالي", critical: "حرج" };
-const URGENCY_LABELS: Record<string, string> = { low: "عادي", medium: "متوسط", high: "عاجل", urgent: "حرج" };
-const CASE_TYPE_LABELS: Record<string, string> = {
-  enforcement: "تنفيذ / ديون", cybercrime: "جرائم إلكترونية", drugs: "مخدرات",
-  labor: "عمالي", civil: "مدني", criminal: "جنائي", commercial: "تجاري",
-  family: "أحوال شخصية", general: "عام",
-};
 
 const FEATURES = [
-  { icon: Brain, title: "ذكاء اصطناعي متخصص", desc: "مدرّب على الأنظمة والتشريعات السعودية لتحليل دقيق وموثوق" },
-  { icon: Shield, title: "تحليل المخاطر", desc: "تقييم فوري لمستوى المخاطرة والعجلة في كل قضية" },
-  { icon: Clock, title: "استجابة فورية", desc: "تحليل قانوني شامل خلال ثوانٍ بدون انتظار" },
-  { icon: BookOpen, title: "قاعدة معرفة قانونية", desc: "مرجعية من 80+ مادة نظامية سعودية محدّثة" },
-  { icon: Scale, title: "تكييف قانوني دقيق", desc: "تصنيف القضية وتحديد الأنظمة المنطبقة بشكل احترافي" },
-  { icon: FileText, title: "خطة عمل قابلة للتنفيذ", desc: "خطوات واضحة ومنظمة يمكن اتخاذها فوراً" },
+  { icon: Brain,        text: "تحليل ذكي مبني على الأنظمة السعودية الرسمية" },
+  { icon: FileSearch,   text: "استشهاد مباشر بالمواد القانونية المحددة" },
+  { icon: Clock,        text: "ردود فورية في ثوانٍ لا ساعات" },
+  { icon: CheckCircle,  text: "تحليل ثلاثي المراحل: وقائع ← استراتيجية ← خطة" },
+  { icon: Shield,       text: "سرية تامة لجميع الاستشارات" },
+  { icon: Zap,          text: "كشف ثغرات الأحكام القضائية تلقائياً" },
 ];
 
-/* ════════════════════════════════════════════
-   HOME PAGE
-   ════════════════════════════════════════════ */
-export default function Home() {
-  const [view, setView] = useState<"hero" | "thinking" | "analysis">("hero");
-  const [input, setInput] = useState("");
-  const [sections, setSections] = useState<AnalysisSection[]>([]);
-  const [classification, setClassification] = useState<ClassificationData | null>(null);
-  const [kbUsed, setKbUsed] = useState(false);
-  const [kbCount, setKbCount] = useState(0);
-  const [aiResponse, setAiResponse] = useState("");
-  const [leadTriggered, setLeadTriggered] = useState(false);
-  const fingerprint = getDeviceFingerprint();
-
-  const createConversation = trpc.conversation.create.useMutation();
-  const chatMutation = trpc.chat.send.useMutation();
-
-  const handleSubmit = useCallback(async () => {
-    if (!input.trim() || chatMutation.isPending) return;
-    const text = input.trim();
-    setView("thinking");
-
-    const conv = await createConversation.mutateAsync({
-      deviceFingerprint: fingerprint,
-      title: text.slice(0, 50) + "...",
+/* ── Animated Counter ── */
+function Counter({ target, suffix }: { target: number; suffix: string }) {
+  const ref = useRef<HTMLSpanElement>(null!);
+  useEffect(() => {
+    const obj = { val: 0 };
+    gsap.to(obj, {
+      val: target,
+      duration: 2,
+      ease: "power2.out",
+      scrollTrigger: { trigger: ref.current, start: "top 85%", once: true },
+      onUpdate: () => {
+        if (ref.current) ref.current.textContent = Math.round(obj.val) + suffix;
+      },
     });
+  }, [target, suffix]);
+  return <span ref={ref}>0{suffix}</span>;
+}
 
-    chatMutation.mutate(
-      { conversationId: conv.id, message: text },
-      {
-        onSuccess: (data: any) => {
-          if (!data) return;
-          setAiResponse(data.content || "");
-          setClassification(data.classification);
-          setKbUsed(data.kbUsed);
-          setKbCount(data.kbChunksCount);
-          setLeadTriggered(!!data.leadTriggered);
+export default function Home() {
+  const heroRef     = useRef<HTMLElement>(null!);
+  const titleRef    = useRef<HTMLDivElement>(null!);
+  const statsRef    = useRef<HTMLDivElement>(null!);
+  const servicesRef = useRef<HTMLDivElement>(null!);
+  const featureRef  = useRef<HTMLDivElement>(null!);
+  const ctaRef      = useRef<HTMLDivElement>(null!);
 
-          if (data.analysis) {
-            const analysisEntries = Object.entries(data.analysis as Record<string, string>)
-              .filter(([k]) => !k.startsWith("_"))
-              .filter(([k]) => SECTION_DEFS.find((d) => d.key === k));
+  const { scrollYProgress } = useScroll({ target: heroRef });
+  const heroY     = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const heroOpac  = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
 
-            const builtSections = analysisEntries
-              .map(([key, content]) => {
-                const def = SECTION_DEFS.find((d) => d.key === key);
-                if (!def) return null;
-                return { key, label: def.label, content };
-              })
-              .filter(Boolean) as AnalysisSection[];
+  /* GSAP scroll reveals */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      /* Hero title stagger */
+      gsap.from(".hero-word", {
+        y: 80, opacity: 0, duration: 1, stagger: 0.12,
+        ease: "power3.out", delay: 0.3,
+      });
+      gsap.from(".hero-sub", {
+        y: 30, opacity: 0, duration: 0.9,
+        ease: "power2.out", delay: 0.9,
+      });
+      gsap.from(".hero-cta", {
+        y: 20, opacity: 0, duration: 0.7,
+        ease: "power2.out", delay: 1.2, stagger: 0.1,
+      });
 
-            const orderMap = Object.fromEntries(SECTION_DEFS.map((d, i) => [d.key, i]));
-            builtSections.sort((a, b) => (orderMap[a.key] ?? 99) - (orderMap[b.key] ?? 99));
-            setSections(builtSections);
-          }
-          setTimeout(() => setView("analysis"), 2000);
-        },
-        onError: () => setView("hero"),
-      }
-    );
-  }, [input, chatMutation, createConversation, fingerprint]);
+      /* Stats section */
+      gsap.from(statsRef.current?.querySelectorAll(".stat-card") ?? [], {
+        y: 50, opacity: 0, duration: 0.8, stagger: 0.15,
+        ease: "power2.out",
+        scrollTrigger: { trigger: statsRef.current, start: "top 80%" },
+      });
 
-  /* ══ HERO VIEW ══ */
-  if (view === "hero") {
-    return (
-      <div>
+      /* Services cards */
+      ScrollTrigger.batch(".service-card", {
+        onEnter: (batch) =>
+          gsap.to(batch, { opacity: 1, y: 0, stagger: 0.1, duration: 0.7, ease: "power2.out" }),
+        start: "top 88%",
+      });
+      gsap.set(".service-card", { opacity: 0, y: 50 });
 
-        {/* ── HERO SECTION ── */}
-        <section className="relative overflow-hidden" style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+      /* Feature list */
+      gsap.from(".feature-item", {
+        x: 40, opacity: 0, duration: 0.6, stagger: 0.1,
+        ease: "power2.out",
+        scrollTrigger: { trigger: featureRef.current, start: "top 75%" },
+      });
 
-          {/* Background ambient glows */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div
-              className="absolute top-1/4 right-1/3 w-96 h-96 rounded-full opacity-10 blur-3xl"
-              style={{ background: "radial-gradient(circle, #C9A84C 0%, transparent 70%)" }}
-            />
-            <div
-              className="absolute bottom-1/3 left-1/4 w-64 h-64 rounded-full opacity-6 blur-3xl"
-              style={{ background: "radial-gradient(circle, #A8893A 0%, transparent 70%)" }}
-            />
-            {/* Grid lines */}
-            <div className="absolute inset-0 opacity-[0.03]"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(201,168,76,1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(201,168,76,1) 1px, transparent 1px)
-                `,
-                backgroundSize: "80px 80px",
-              }}
-            />
-          </div>
+      /* CTA section */
+      gsap.from(ctaRef.current, {
+        scale: 0.95, opacity: 0, duration: 1,
+        ease: "power2.out",
+        scrollTrigger: { trigger: ctaRef.current, start: "top 80%" },
+      });
+    });
+    return () => ctx.revert();
+  }, []);
 
-          <div className="container-apple relative z-10 py-32 text-center w-full">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            >
+  return (
+    <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", overflowX: "hidden" }}>
+
+      {/* ══ HERO ══════════════════════════════════════════════════════════ */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden">
+
+        {/* Background gradient layers */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{
+            background: "radial-gradient(ellipse 80% 60% at 70% 50%, rgba(201,168,76,0.07) 0%, transparent 60%)",
+          }} />
+          <div className="absolute inset-0" style={{
+            background: "radial-gradient(ellipse 60% 80% at 20% 80%, rgba(30,58,138,0.12) 0%, transparent 55%)",
+          }} />
+          {/* Grid lines */}
+          <div className="absolute inset-0 opacity-[0.025]" style={{
+            backgroundImage: "linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }} />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full pt-24 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
+
+            {/* Text content */}
+            <motion.div style={{ y: heroY, opacity: heroOpac }} ref={titleRef} className="relative z-10 order-2 lg:order-1">
+
               {/* Badge */}
-              <div className="mb-8 inline-flex">
-                <span
-                  className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-full"
-                  style={{
-                    background: "rgba(201,168,76,0.08)",
-                    border: "1px solid rgba(201,168,76,0.25)",
-                    color: "#C9A84C",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  أول مستشار قانوني ذكي في السعودية
-                </span>
+              <div className="hero-word inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold tracking-widest uppercase"
+                style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", color: "#C9A84C" }}>
+                <Star className="w-3 h-3 fill-current" />
+                المستشار القانوني الذكي الأول في السعودية
               </div>
 
-              {/* Headline */}
-              <h1 className="headline-hero mb-6">
-                استشارتك القانونية{" "}
-                <span className="text-gradient-gold">
-                  بذكاء اصطناعي
-                </span>
+              {/* Main heading */}
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6" style={{ fontFamily: "'EB Garamond', serif" }}>
+                <span className="hero-word block" style={{ color: "var(--text-primary)" }}>اعرف</span>
+                <span className="hero-word block" style={{
+                  background: "linear-gradient(135deg, #C9A84C 0%, #F0D78A 50%, #C9A84C 100%)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>حقوقك</span>
+                <span className="hero-word block" style={{ color: "var(--text-primary)" }}>الآن</span>
               </h1>
 
-              {/* Sub */}
-              <p className="body-large mx-auto mb-12">
-                اكتب قضيتك بالعربية — وسيقوم مسؤول بتحليلها قانونياً من خلال ٣ مراحل ذكية،
-                مع الاستشهاد بالأنظمة السعودية
+              <p className="hero-sub text-lg leading-relaxed mb-10 max-w-lg"
+                style={{ color: "var(--text-muted)", fontFamily: "'Lato', sans-serif" }}>
+                تحليل قانوني احترافي مبني على الأنظمة السعودية. اشرح قضيتك وسيحللها مسؤول بمواد قانونية محددة خلال ثوانٍ.
               </p>
 
-              {/* Input box */}
-              <motion.div
-                className="max-w-2xl mx-auto mb-8"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-              >
-                <div
-                  className="relative rounded-2xl p-px"
-                  style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.3), rgba(201,168,76,0.05), rgba(201,168,76,0.3))" }}
-                >
-                  <div className="rounded-2xl" style={{ backgroundColor: "#111111" }}>
-                    <textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
-                      placeholder="اكتب قضيتك هنا — مثال: تعرضت لاحتيال إلكتروني وأريد معرفة خياراتي القانونية..."
-                      rows={4}
-                      className="w-full px-6 py-5 text-sm bg-transparent resize-none outline-none"
-                      style={{ color: "#F0EAD8", lineHeight: "1.7" }}
-                    />
-                    <div
-                      className="flex items-center justify-between px-4 pb-4"
-                      style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-                    >
-                      <span className="text-xs" style={{ color: "#3A3530" }}>
-                        {input.length > 0 ? `${input.length} حرف` : "اضغط Enter للإرسال"}
-                      </span>
-                      <button
-                        onClick={handleSubmit}
-                        disabled={!input.trim() || chatMutation.isPending}
-                        className="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300"
-                        style={{
-                          background: input.trim() ? "linear-gradient(135deg, #C9A84C, #A8893A)" : "rgba(255,255,255,0.05)",
-                          color: input.trim() ? "#0A0A0A" : "#3A3530",
-                          cursor: input.trim() ? "pointer" : "not-allowed",
-                          boxShadow: input.trim() ? "0 4px 16px rgba(201,168,76,0.3)" : "none",
-                        }}
-                      >
-                        <Brain className="w-4 h-4" />
-                        حلّل قضيتي
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-12">
+                <Link to="/ai-advisor"
+                  className="hero-cta group flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-semibold text-base transition-all duration-300 cursor-pointer"
+                  style={{
+                    background: "linear-gradient(135deg, #C9A84C, #A8893A)",
+                    color: "#0A0A0A",
+                    boxShadow: "0 8px 32px rgba(201,168,76,0.35)",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 40px rgba(201,168,76,0.55)";
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(201,168,76,0.35)";
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  }}>
+                  <Brain className="w-5 h-5" />
+                  استشارة مجانية الآن
+                  <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                </Link>
+                <Link to="/services"
+                  className="hero-cta flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-semibold text-base transition-all duration-300 cursor-pointer"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(201,168,76,0.3)",
+                    color: "var(--text-secondary)",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.6)";
+                    (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.06)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.3)";
+                    (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }}>
+                  <Scale className="w-5 h-5" />
+                  خدماتنا القانونية
+                </Link>
+              </div>
 
-              {/* Quick Prompts */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
-                <span className="text-xs ml-1" style={{ color: "#3A3530" }}>أمثلة:</span>
-                {QUICK_PROMPTS.map((prompt, i) => (
-                  <motion.button
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + i * 0.08 }}
-                    onClick={() => setInput(prompt)}
-                    className="px-3 py-1.5 text-xs rounded-full transition-all duration-200"
-                    style={{
-                      color: "#9A8F7A",
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = "#C9A84C";
-                      (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.3)";
-                      (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(201,168,76,0.06)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = "#9A8F7A";
-                      (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)";
-                      (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.03)";
-                    }}
-                  >
-                    {prompt}
-                  </motion.button>
+              {/* Trust chips */}
+              <div className="hero-cta flex flex-wrap gap-3">
+                {["تحليل فوري", "أنظمة سعودية", "سرية تامة", "مجاناً"].map(chip => (
+                  <span key={chip}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                    style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(201,168,76,0.15)", color: "var(--text-muted)", backdropFilter: "blur(8px)" }}>
+                    <CheckCircle className="w-3 h-3" style={{ color: "#17B26A" }} />
+                    {chip}
+                  </span>
                 ))}
               </div>
-
-              {/* CTA Links */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link to="/ai-advisor" className="btn-apple-secondary">
-                  المستشار المتكامل
-                  <ChevronLeft className="w-4 h-4" />
-                </Link>
-                <Link to="/services" className="text-sm transition-colors" style={{ color: "#5A5248" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#9A8F7A")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#5A5248")}
-                >
-                  استكشف خدماتنا ←
-                </Link>
-              </div>
             </motion.div>
-          </div>
-        </section>
 
-        {/* Gold divider */}
-        <div className="gold-divider" />
-
-        {/* ── STATS SECTION ── */}
-        <section className="py-20" style={{ backgroundColor: "#080808" }}>
-          <div className="container-apple">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
-              {[
-                { end: 257, suffix: "+", label: "مادة قانونية", duration: 2 },
-                { end: 8, suffix: "", label: "أنظمة سعودية", duration: 1.5 },
-                { end: 3, suffix: "", label: "مراحل تحليل", duration: 1.2 },
-                { end: null, suffix: null, label: "الرد فوري", duration: 0 },
-              ].map((stat, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.5 }}
-                >
-                  {stat.end !== null ? (
-                    <AnimatedCounter
-                      end={stat.end}
-                      suffix={stat.suffix || ""}
-                      duration={stat.duration}
-                      className="text-4xl font-bold text-gradient-gold"
-                    />
-                  ) : (
-                    <span className="text-4xl font-bold text-gradient-gold">فوري</span>
-                  )}
-                  <p className="text-sm mt-2" style={{ color: "#5A5248" }}>{stat.label}</p>
-                </motion.div>
-              ))}
+            {/* 3D Scene */}
+            <div className="order-1 lg:order-2 relative h-[360px] sm:h-[480px] lg:h-[600px]">
+              <div className="absolute inset-0">
+                <HeroScene />
+              </div>
+              {/* Floating badge */}
+              <motion.div
+                animate={{ y: [-6, 6, -6] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-8 left-4 px-4 py-3 rounded-2xl z-10"
+                style={{
+                  background: "rgba(12,12,20,0.85)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(201,168,76,0.2)",
+                }}>
+                <p className="text-xs font-bold" style={{ color: "#C9A84C" }}>٢٠+ سنة خبرة</p>
+                <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>قانوني سعودي محترف</p>
+              </motion.div>
+              <motion.div
+                animate={{ y: [6, -6, 6] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute bottom-12 right-4 px-4 py-3 rounded-2xl z-10"
+                style={{
+                  background: "rgba(12,12,20,0.85)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(23,178,106,0.2)",
+                }}>
+                <p className="text-xs font-bold" style={{ color: "#17B26A" }}>+٥٠٠ قضية</p>
+                <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>تم تحليلها بنجاح</p>
+              </motion.div>
             </div>
           </div>
-        </section>
-
-        {/* Gold divider */}
-        <div className="gold-divider" />
-
-        {/* ── HOW IT WORKS ── */}
-        <section className="section-apple">
-          <div className="container-apple text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <span className="badge-apple mb-4">كيف يعمل؟</span>
-              <h2 className="headline-section mt-4 mb-4">تحليل في ثلاث مراحل</h2>
-              <p className="body-large mx-auto">منهجية احترافية مبنية على أفضل الممارسات القانونية</p>
-            </motion.div>
-          </div>
-
-          <div className="container-apple grid-clean">
-            {[
-              {
-                num: "١",
-                title: "تحليل عميق",
-                desc: "نقرأ القضية بعمق ونحدد نوعها القانوني والأنظمة السعودية المنطبقة عليها",
-                color: "#C9A84C",
-              },
-              {
-                num: "٢",
-                title: "تفكير استراتيجي",
-                desc: "نقيّم المخاطر والبدائل ونحدد السيناريوهات المتوقعة ونقاط القوة والضعف",
-                color: "#E5C97A",
-              },
-              {
-                num: "٣",
-                title: "رد احترافي",
-                desc: "نقدم تحليلاً منظماً مع خطة عمل واضحة وإجراءات قابلة للتنفيذ فوراً",
-                color: "#A8893A",
-              },
-            ].map((step, i) => (
-              <motion.div
-                key={step.num}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.12, duration: 0.6 }}
-                className="card-apple p-8 text-center relative overflow-hidden group"
-              >
-                {/* Glow top */}
-                <div
-                  className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: `linear-gradient(90deg, transparent, ${step.color}, transparent)` }}
-                />
-                <span
-                  className="text-5xl font-bold mb-6 block"
-                  style={{ color: "rgba(201,168,76,0.15)" }}
-                >
-                  {step.num}
-                </span>
-                <h3 className="text-lg font-bold mb-3" style={{ color: "#F0EAD8" }}>
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "#5A5248" }}>
-                  {step.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── FEATURES GRID ── */}
-        <section className="section-apple" style={{ backgroundColor: "#080808" }}>
-          <div className="container-apple text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <span className="badge-apple mb-4">المميزات</span>
-              <h2 className="headline-section mt-4 mb-4">لماذا مسؤول؟</h2>
-              <p className="body-large mx-auto">تقنية متقدمة مصممة للبيئة القانونية السعودية</p>
-            </motion.div>
-          </div>
-
-          <div className="container-apple grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08, duration: 0.5 }}
-                className="card-apple p-6 group"
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                  style={{
-                    background: "rgba(201,168,76,0.1)",
-                    border: "1px solid rgba(201,168,76,0.2)",
-                  }}
-                >
-                  <feature.icon className="w-5 h-5" style={{ color: "#C9A84C" }} />
-                </div>
-                <h3 className="text-sm font-bold mb-2" style={{ color: "#F0EAD8" }}>
-                  {feature.title}
-                </h3>
-                <p className="text-xs leading-relaxed" style={{ color: "#5A5248" }}>
-                  {feature.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Gold divider */}
-        <div className="gold-divider" />
-
-        {/* ── CTA SECTION ── */}
-        <section className="section-apple relative overflow-hidden">
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse at center, rgba(201,168,76,0.06) 0%, transparent 70%)",
-            }}
-          />
-          <div className="container-apple text-center relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-            >
-              <h2 className="headline-section mb-4">جاهز للتحليل القانوني؟</h2>
-              <p className="body-large mx-auto mb-10">
-                ابدأ الآن — تحليل فوري، دقيق، مبني على الأنظمة السعودية. مجاني ومتاح على مدار الساعة.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button
-                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                  className="btn-apple text-base px-8 py-4"
-                >
-                  <Brain className="w-5 h-5" />
-                  ابدأ التحليل الآن
-                </button>
-                <Link to="/contact" className="btn-apple-secondary text-base px-8 py-4">
-                  <Phone className="w-5 h-5" />
-                  تواصل مع محامٍ
-                </Link>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-      </div>
-    );
-  }
-
-  /* ══ THINKING VIEW ══ */
-  if (view === "thinking") {
-    return (
-      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center px-6"
-        >
-          {/* Animated gold ring */}
-          <div className="relative w-20 h-20 mx-auto mb-8">
-            <div
-              className="absolute inset-0 rounded-full animate-spin"
-              style={{
-                border: "2px solid rgba(201,168,76,0.1)",
-                borderTopColor: "#C9A84C",
-              }}
-            />
-            <div
-              className="absolute inset-2 rounded-full animate-spin"
-              style={{
-                border: "1px solid rgba(201,168,76,0.05)",
-                borderBottomColor: "rgba(201,168,76,0.4)",
-                animationDirection: "reverse",
-                animationDuration: "1.5s",
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Brain className="w-6 h-6" style={{ color: "#C9A84C" }} />
-            </div>
-          </div>
-
-          <h2 className="text-xl font-bold mb-3" style={{ color: "#F0EAD8" }}>
-            جاري التحليل القانوني
-          </h2>
-          <p className="text-sm" style={{ color: "#5A5248" }}>
-            المرور على المراحل الثلاث للتحليل العميق...
-          </p>
-
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-2 mt-6">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: "#C9A84C" }}
-                animate={{ opacity: [0.2, 1, 0.2] }}
-                transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.25 }}
-              />
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  /* ══ ANALYSIS VIEW ══ */
-  return (
-    <div className="pb-20" style={{ backgroundColor: "#0A0A0A" }}>
-
-      {/* Header bar */}
-      <header
-        className="flex items-center justify-between px-6 sm:px-8 py-4"
-        style={{ borderBottom: "1px solid rgba(201,168,76,0.1)", backgroundColor: "#080808" }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)" }}
-          >
-            <Brain className="w-4 h-4" style={{ color: "#0A0A0A" }} />
-          </div>
-          <span className="text-sm font-bold" style={{ color: "#F0EAD8" }}>مسؤول — نتائج التحليل</span>
         </div>
-        <button
-          onClick={() => { setView("hero"); setInput(""); setSections([]); setClassification(null); setLeadTriggered(false); }}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs rounded-full transition-all duration-200"
-          style={{
-            color: "#9A8F7A",
-            backgroundColor: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          قضية جديدة
-        </button>
-      </header>
 
-      <div className="container-apple py-10">
+        {/* Scroll indicator */}
+        <motion.div
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer"
+          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" })}>
+          <span className="text-xs tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>اسحب للأسفل</span>
+          <ChevronDown className="w-4 h-4" style={{ color: "var(--accent-gold)" }} />
+        </motion.div>
+      </section>
 
-        {/* Lead CTA Banner */}
-        <AnimatePresence>
-          {leadTriggered && (
-            <motion.div
-              initial={{ opacity: 0, y: -16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="mb-8 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4"
-              style={{
-                background: "linear-gradient(135deg, rgba(201,168,76,0.12), rgba(168,137,58,0.06))",
-                border: "1px solid rgba(201,168,76,0.25)",
-              }}
-            >
-              <div className="flex-1">
-                <p className="text-sm font-bold mb-1" style={{ color: "#E5C97A" }}>
-                  قضيتك تستدعي متابعة فورية
-                </p>
-                <p className="text-xs" style={{ color: "#9A8F7A" }}>
-                  بناءً على درجة المخاطر — ننصح بالتواصل مع محامٍ متخصص من فريق مسؤول
-                </p>
+      {/* ══ STATS ═════════════════════════════════════════════════════════ */}
+      <section ref={statsRef} className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(180deg, transparent 0%, rgba(201,168,76,0.03) 50%, transparent 100%)",
+        }} />
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {STATS.map((s, i) => (
+              <div key={i}
+                className="stat-card text-center p-8 rounded-3xl relative overflow-hidden cursor-default group"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: "1px solid rgba(201,168,76,0.12)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                  transition: "all 0.3s ease",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.border = "1px solid rgba(201,168,76,0.30)";
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,248,230,0.85)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(201,168,76,0.12)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.border = "1px solid rgba(201,168,76,0.12)";
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.75)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)";
+                }}>
+                <div className="text-4xl lg:text-5xl font-bold mb-2" style={{
+                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                  fontFamily: "'EB Garamond', serif",
+                }}>
+                  <Counter target={s.value} suffix={s.suffix} />
+                </div>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>{s.label}</p>
               </div>
-              <Link
-                to="/contact"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold flex-shrink-0 transition-all duration-300"
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ SERVICES ══════════════════════════════════════════════════════ */}
+      <section className="py-24 relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}>
+              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+                خدماتنا القانونية
+              </p>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-6" style={{ fontFamily: "'EB Garamond', serif" }}>
+                كل قضية لها <span style={{
+                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>حل</span>
+              </h2>
+              <p className="text-lg max-w-2xl mx-auto" style={{ color: "var(--text-muted)" }}>
+                نغطي أبرز أنواع القضايا في المملكة بتحليل مبني على النصوص النظامية الرسمية
+              </p>
+            </motion.div>
+          </div>
+
+          <div ref={servicesRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {SERVICES.map((svc, i) => (
+              <div key={i}
+                className="service-card group relative p-7 rounded-3xl cursor-pointer overflow-hidden"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: "1px solid rgba(201,168,76,0.10)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                  transition: "all 0.4s cubic-bezier(0.22,1,0.36,1)",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.border = `1px solid ${svc.color}45`;
+                  (e.currentTarget as HTMLElement).style.background = `${svc.color}0A`;
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-6px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 16px 40px ${svc.color}18`;
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.border = "1px solid rgba(201,168,76,0.10)";
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.75)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)";
+                }}>
+                {/* Number */}
+                <span className="absolute top-5 left-5 text-xs font-mono font-bold tracking-wider"
+                  style={{ color: `${svc.color}50` }}>
+                  {svc.num}
+                </span>
+                {/* Icon */}
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+                  style={{ background: `${svc.color}18`, border: `1px solid ${svc.color}30` }}>
+                  <svc.icon className="w-6 h-6" style={{ color: svc.color }} />
+                </div>
+                <h3 className="text-lg font-bold mb-3" style={{ color: "var(--text-primary)" }}>{svc.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{svc.desc}</p>
+                {/* Arrow */}
+                <div className="mt-4 flex items-center gap-2 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: svc.color }}>
+                  <span>اعرف أكثر</span>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link to="/services"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold transition-all duration-300 cursor-pointer"
+              style={{
+                border: "1px solid rgba(201,168,76,0.25)",
+                color: "var(--accent-gold)",
+                background: "rgba(201,168,76,0.05)",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.12)";
+                (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.5)";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.05)";
+                (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.25)";
+              }}>
+              عرض جميع الخدمات
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ AI ADVISOR HIGHLIGHT ══════════════════════════════════════════ */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0" style={{
+          background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(30,58,138,0.08) 0%, transparent 70%)",
+        }} />
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
+            {/* Left: Feature list */}
+            <div ref={featureRef}>
+              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+                المستشار القانوني الذكي
+              </p>
+              <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight" style={{ fontFamily: "'EB Garamond', serif" }}>
+                تحليل قانوني <span style={{
+                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>حقيقي</span><br />لا اجتهادات عامة
+              </h2>
+              <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-muted)" }}>
+                مسؤول لا يعطيك إجابات جاهزة — يحلل وقائع قضيتك تحديداً ويربطها بالمواد النظامية المناسبة.
+              </p>
+              <div className="space-y-4">
+                {FEATURES.map((f, i) => (
+                  <div key={i}
+                    className="feature-item flex items-center gap-4 p-4 rounded-2xl"
+                    style={{
+                      background: "rgba(255,255,255,0.72)",
+                      border: "1px solid rgba(201,168,76,0.12)",
+                      backdropFilter: "blur(10px)",
+                    }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.2)" }}>
+                      <f.icon className="w-4 h-4" style={{ color: "#C9A84C" }} />
+                    </div>
+                    <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{f.text}</span>
+                  </div>
+                ))}
+              </div>
+              <Link to="/ai-advisor"
+                className="mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold text-base transition-all duration-300 cursor-pointer"
                 style={{
                   background: "linear-gradient(135deg, #C9A84C, #A8893A)",
                   color: "#0A0A0A",
-                  boxShadow: "0 4px 16px rgba(201,168,76,0.3)",
+                  boxShadow: "0 8px 32px rgba(201,168,76,0.35)",
                 }}
-              >
-                <Phone className="w-3.5 h-3.5" />
-                تواصل الآن
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 40px rgba(201,168,76,0.55)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(201,168,76,0.35)";
+                }}>
+                <Brain className="w-5 h-5" />
+                جرّب الآن مجاناً
+                <ArrowLeft className="w-4 h-4" />
               </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Classification badges */}
-        {classification && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-wrap gap-2 mb-8"
-          >
-            <span className="badge-apple">
-              {CASE_TYPE_LABELS[classification.caseType] || classification.caseType}
-            </span>
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full"
-              style={{
-                backgroundColor: (classification.riskLevel === "high" || classification.riskLevel === "critical")
-                  ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.04)",
-                color: (classification.riskLevel === "high" || classification.riskLevel === "critical")
-                  ? "#ef4444" : "#9A8F7A",
-                border: `1px solid ${(classification.riskLevel === "high" || classification.riskLevel === "critical") ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.06)"}`,
-              }}
-            >
-              المخاطر: {RISK_LABELS[classification.riskLevel]}
-            </span>
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full"
-              style={{
-                backgroundColor: (classification.urgencyLevel === "urgent" || classification.urgencyLevel === "high")
-                  ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.04)",
-                color: (classification.urgencyLevel === "urgent" || classification.urgencyLevel === "high")
-                  ? "#ef4444" : "#9A8F7A",
-                border: `1px solid ${(classification.urgencyLevel === "urgent" || classification.urgencyLevel === "high") ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.06)"}`,
-              }}
-            >
-              العجلة: {URGENCY_LABELS[classification.urgencyLevel]}
-            </span>
-          </motion.div>
-        )}
-
-        {/* KB Badge */}
-        {kbUsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 p-4 mb-8 rounded-xl"
-            style={{
-              backgroundColor: "rgba(34,197,94,0.06)",
-              border: "1px solid rgba(34,197,94,0.12)",
-            }}
-          >
-            <BookOpen className="w-4 h-4" style={{ color: "#22c55e" }} />
-            <span className="text-xs" style={{ color: "#16a34a" }}>
-              التحليل مبني على {kbCount} مادة من قاعدة المعرفة القانونية
-            </span>
-          </motion.div>
-        )}
-
-        {/* AI Response */}
-        {aiResponse && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-6 rounded-2xl"
-            style={{
-              backgroundColor: "#111111",
-              border: "1px solid rgba(201,168,76,0.12)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)" }}
-              >
-                <Brain className="w-3 h-3" style={{ color: "#0A0A0A" }} />
-              </div>
-              <span className="text-xs font-semibold" style={{ color: "#C9A84C" }}>تحليل مسؤول</span>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: "#9A8F7A" }}>{aiResponse}</p>
-          </motion.div>
-        )}
 
-        {/* Analysis Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sections.map((section, i) => (
+            {/* Right: Chat preview mockup */}
             <motion.div
-              key={section.key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-              className="card-apple p-6"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <div
-                  className="w-1 h-4 rounded-full"
-                  style={{ background: "linear-gradient(180deg, #C9A84C, #A8893A)" }}
-                />
-                <h3 className="text-sm font-bold" style={{ color: "#F0EAD8" }}>
-                  {section.label}
-                </h3>
-              </div>
-              <RichText text={section.content} />
-            </motion.div>
-          ))}
-        </div>
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="relative">
+              <div className="rounded-3xl overflow-hidden p-6"
+                style={{
+                  background: "rgba(10,10,18,0.9)",
+                  border: "1px solid rgba(201,168,76,0.15)",
+                  boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.08)",
+                }}>
+                {/* Chat header */}
+                <div className="flex items-center gap-3 pb-4 mb-4"
+                  style={{ borderBottom: "1px solid rgba(201,168,76,0.08)" }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)" }}>
+                    <Scale className="w-4 h-4" style={{ color: "#0A0A0A" }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: "#F0EAD8" }}>مسؤول</p>
+                    <p className="text-[11px]" style={{ color: "#6B6355" }}>مستشار قانوني • متصل الآن</p>
+                  </div>
+                  <div className="mr-auto w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                </div>
 
-        {/* Document Upload */}
-        <div className="mt-10">
-          <div
-            className="rounded-2xl p-6"
-            style={{ backgroundColor: "#111111", border: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <div className="flex items-center gap-2 mb-5">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)" }}
-              >
-                <FileText className="w-4 h-4" style={{ color: "#C9A84C" }} />
+                {/* Messages */}
+                {[
+                  { role: "user",      text: "تعرضت لابتزاز إلكتروني ولدي الرسائل والصور كدليل" },
+                  { role: "assistant", text: "وقائعك تندرج تحت المادة ٣ و٥ من نظام مكافحة الجرائم المعلوماتية. الابتزاز الإلكتروني عقوبته لا تقل عن سنة وغرامة مليون ريال. خطوتك الأولى: احتفظ بجميع الأدلة وأبلغ هيئة الأمن السيبراني فوراً.\n\nهل تريد خطة إجراءات تفصيلية؟" },
+                  { role: "user",      text: "نعم، ما الخطوات بالترتيب؟" },
+                ].map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.2, duration: 0.5 }}
+                    className={`flex mb-3 ${msg.role === "user" ? "justify-start flex-row-reverse" : "justify-start"}`}>
+                    <div className="max-w-[82%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                      style={msg.role === "user"
+                        ? { background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.15)", color: "#F0EAD8", borderBottomRightRadius: 4 }
+                        : { background: "#141414", border: "1px solid rgba(255,255,255,0.05)", color: "#D4C9B0", borderBottomLeftRadius: 4, whiteSpace: "pre-line" }}>
+                      {msg.text}
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* Typing */}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)" }}>
+                    <Scale className="w-3.5 h-3.5" style={{ color: "#0A0A0A" }} />
+                  </div>
+                  <div className="px-4 py-2.5 rounded-2xl"
+                    style={{ background: "#1A1A1A", border: "1px solid rgba(201,168,76,0.1)" }}>
+                    <div className="flex gap-1.5">
+                      {[0, 1, 2].map(j => (
+                        <motion.div key={j} className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: "#C9A84C" }}
+                          animate={{ y: [0, -4, 0] }}
+                          transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-sm font-bold" style={{ color: "#F0EAD8" }}>رفع مستند قانوني</h3>
-            </div>
-            <DocumentUploadZone />
+
+              {/* Floating badge */}
+              <motion.div
+                animate={{ rotate: [0, 3, -3, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-4 -right-4 px-4 py-2 rounded-2xl text-xs font-bold"
+                style={{
+                  background: "linear-gradient(135deg, #C9A84C, #A8893A)",
+                  color: "#0A0A0A",
+                  boxShadow: "0 8px 24px rgba(201,168,76,0.4)",
+                }}>
+                ٣ مراحل تحليل
+              </motion.div>
+            </motion.div>
           </div>
         </div>
+      </section>
 
-        {/* Back button */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => { setView("hero"); setInput(""); setSections([]); setClassification(null); setLeadTriggered(false); }}
-            className="inline-flex items-center gap-2 text-sm transition-colors"
-            style={{ color: "#5A5248" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#C9A84C")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#5A5248")}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            تحليل قضية جديدة
-          </button>
+      {/* ══ CASE REVIEW HIGHLIGHT ════════════════════════════════════════ */}
+      <section className="py-24">
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="relative rounded-3xl overflow-hidden p-12"
+            style={{
+              background: "linear-gradient(135deg, rgba(30,58,138,0.15) 0%, rgba(201,168,76,0.06) 100%)",
+              border: "1px solid rgba(201,168,76,0.15)",
+            }}>
+            <div className="absolute top-0 right-0 w-96 h-96 pointer-events-none" style={{
+              background: "radial-gradient(circle at top right, rgba(201,168,76,0.08) 0%, transparent 60%)",
+            }} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center relative z-10">
+              <div>
+                <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+                  مراجعة القضايا والأحكام
+                </p>
+                <h2 className="text-3xl lg:text-4xl font-bold mb-4" style={{ fontFamily: "'EB Garamond', serif" }}>
+                  عندك حكم قضائي؟<br />
+                  <span style={{
+                    background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                    WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                  }}>نكتشف ثغراته</span>
+                </h2>
+                <p className="text-base leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+                  ارفع الحكم القضائي أو السند التنفيذي وسيحلل مسؤول أخطاءه الإجرائية وفرص الاستئناف.
+                </p>
+                <Link to="/case-review"
+                  className="inline-flex items-center gap-3 px-7 py-3.5 rounded-2xl font-semibold text-sm transition-all cursor-pointer"
+                  style={{
+                    background: "rgba(201,168,76,0.12)",
+                    border: "1px solid rgba(201,168,76,0.3)",
+                    color: "#C9A84C",
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.2)";
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.12)";
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  }}>
+                  <FileSearch className="w-4 h-4" />
+                  ابدأ مراجعة القضية
+                  <ArrowLeft className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "أخطاء إجرائية", val: "٩٢٪ من الأحكام" },
+                  { label: "فرص الاستئناف", val: "تحليل فوري" },
+                  { label: "ثغرات التعليل", val: "كشف تلقائي" },
+                  { label: "حجج مضادة", val: "مُصاغة جاهزة" },
+                ].map((item, i) => (
+                  <div key={i} className="p-5 rounded-2xl"
+                    style={{
+                      background: "rgba(255,255,255,0.72)",
+                      border: "1px solid rgba(201,168,76,0.1)",
+                    }}>
+                    <p className="text-xs mb-1" style={{ color: "var(--text-faint)" }}>{item.label}</p>
+                    <p className="text-sm font-bold" style={{ color: "#C9A84C" }}>{item.val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </section>
+
+      {/* ══ CTA ═══════════════════════════════════════════════════════════ */}
+      <section className="py-24">
+        <div className="max-w-4xl mx-auto px-6">
+          <div ref={ctaRef}
+            className="relative rounded-3xl overflow-hidden p-16 text-center"
+            style={{
+              background: "rgba(255,255,255,0.80)",
+              border: "1px solid rgba(201,168,76,0.20)",
+              backdropFilter: "blur(24px) saturate(160%)",
+              boxShadow: "0 16px 60px rgba(201,168,76,0.10), 0 4px 16px rgba(0,0,0,0.05)",
+            }}>
+            {/* Gold glow top */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px"
+                style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.45), transparent)" }} />
+              <div className="absolute inset-0"
+                style={{ background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 60%)" }} />
+            </div>
+
+            <motion.div
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 relative z-10"
+              style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)", boxShadow: "0 12px 40px rgba(201,168,76,0.4)" }}>
+              <Scale className="w-10 h-10" style={{ color: "#0A0A0A" }} />
+            </motion.div>
+
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6 relative z-10" style={{ fontFamily: "'EB Garamond', serif" }}>
+              قضيتك تستحق
+              <span style={{
+                display: "block",
+                background: "linear-gradient(135deg, #C9A84C 0%, #F0D78A 50%, #C9A84C 100%)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              }}>تحليلاً احترافياً</span>
+            </h2>
+            <p className="text-lg mb-10 relative z-10 max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
+              ابدأ باستشارتك المجانية الآن. لا تسجيل بريد، لا انتظار — فقط اشرح قضيتك واحصل على تحليل قانوني فوري.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+              <Link to="/ai-advisor"
+                className="flex items-center gap-3 px-10 py-4 rounded-2xl font-semibold text-base transition-all cursor-pointer"
+                style={{
+                  background: "linear-gradient(135deg, #C9A84C, #A8893A)",
+                  color: "#0A0A0A",
+                  boxShadow: "0 8px 32px rgba(201,168,76,0.5)",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 16px 48px rgba(201,168,76,0.65)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(201,168,76,0.5)";
+                }}>
+                <Brain className="w-5 h-5" />
+                ابدأ استشارتك الآن
+              </Link>
+              <Link to="/contact"
+                className="flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold text-sm transition-all cursor-pointer"
+                style={{
+                  border: "1px solid rgba(201,168,76,0.25)",
+                  color: "var(--text-secondary)",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.5)";
+                  (e.currentTarget as HTMLElement).style.background = "rgba(201,168,76,0.06)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.25)";
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                }}>
+                تواصل مع محامٍ
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

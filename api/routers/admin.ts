@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 import { createRouter, publicQuery } from "../middleware";
 import { env } from "../lib/env";
 
-// Hash the admin password once at startup
-const ADMIN_HASH = bcrypt.hashSync(env.adminPassword, 12);
+// Hash the admin password once at startup (cost=14 ≈ 1–2s/hash, brute-force resistant)
+const ADMIN_HASH = bcrypt.hashSync(env.adminPassword, 14);
 
 // Active sessions: token → expiry timestamp
 const sessions = new Map<string, number>();

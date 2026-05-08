@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
-import { motion, AnimatePresence } from "framer-motion";
-import { Scale, Menu, X, Sparkles, LogOut } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
+import { Menu, X, Sparkles, LogOut, Shield } from "lucide-react";
 import { useAuth, GoogleLoginButton } from "@/providers/AuthProvider";
+import MasoulLogo from "@/components/MasoulLogo";
 
 const navLinks = [
   { path: "/", label: "الرئيسية" },
@@ -19,6 +20,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -34,34 +37,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#0A0A0A", color: "#F0EAD8" }} dir="rtl">
+    <div className="min-h-screen" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }} dir="rtl">
+
+      {/* Scroll Progress */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 z-[70] origin-right"
+        style={{
+          scaleX,
+          height: "2px",
+          background: "linear-gradient(to left, #C9A84C, #F0D78A, #1E3A8A)",
+          boxShadow: "0 0 10px rgba(201,168,76,0.5)",
+        }}
+      />
 
       {/* Navigation */}
       <header
         className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
         style={{
-          backgroundColor: scrolled ? "rgba(10,10,10,0.92)" : "transparent",
-          backdropFilter: scrolled ? "blur(20px)" : "none",
+          backgroundColor: scrolled ? "rgba(255,255,255,0.88)" : "transparent",
+          backdropFilter: scrolled ? "blur(20px) saturate(160%)" : "none",
           borderBottom: scrolled ? "1px solid rgba(201,168,76,0.12)" : "1px solid transparent",
+          boxShadow: scrolled ? "0 1px 20px rgba(0,0,0,0.06)" : "none",
         }}
       >
         <div className="max-w-6xl mx-auto px-6 sm:px-8">
           <div className="flex items-center justify-between h-16">
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-105"
-                style={{
-                  background: "linear-gradient(135deg, #C9A84C, #A8893A)",
-                  boxShadow: "0 4px 16px rgba(201,168,76,0.3)",
-                }}
-              >
-                <Scale className="w-4.5 h-4.5" style={{ color: "#0A0A0A" }} />
-              </div>
-              <span className="text-base font-bold tracking-wide" style={{ color: "#F0EAD8" }}>
-                مسؤول
-              </span>
+            <Link to="/" className="cursor-pointer">
+              <MasoulLogo size={34} id="navbar" />
             </Link>
 
             {/* Desktop Nav */}
@@ -70,20 +74,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className="relative px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200"
+                  className="relative px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 cursor-pointer"
                   style={{
-                    color: isActive(link.path) ? "#C9A84C" : "#9A8F7A",
-                    backgroundColor: isActive(link.path) ? "rgba(201,168,76,0.1)" : "transparent",
+                    color: isActive(link.path) ? "#C9A84C" : "#475569",
+                    backgroundColor: isActive(link.path) ? "rgba(201,168,76,0.10)" : "transparent",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive(link.path)) {
-                      (e.currentTarget as HTMLElement).style.color = "#F0EAD8";
-                      (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.05)";
+                      (e.currentTarget as HTMLElement).style.color = "#0F172A";
+                      (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(15,23,42,0.05)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive(link.path)) {
-                      (e.currentTarget as HTMLElement).style.color = "#9A8F7A";
+                      (e.currentTarget as HTMLElement).style.color = "#475569";
                       (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
                     }
                   }}
@@ -109,12 +113,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     className="w-8 h-8 rounded-full border-2"
                     style={{ borderColor: "#C9A84C" }}
                   />
-                  <span className="text-sm" style={{ color: "#9A8F7A" }}>{user.name.split(" ")[0]}</span>
+                  <span className="text-sm" style={{ color: "var(--text-muted)" }}>{user.name.split(" ")[0]}</span>
                   <button
                     onClick={logout}
-                    className="p-1.5 rounded-lg transition-colors"
-                    style={{ color: "#9A8F7A" }}
+                    className="p-1.5 rounded-lg transition-colors cursor-pointer"
+                    style={{ color: "var(--text-muted)" }}
                     title="تسجيل الخروج"
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#F04438")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
@@ -123,33 +129,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="relative hidden sm:block">
                   <button
                     onClick={() => setShowLoginPopup(!showLoginPopup)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300"
-                    style={{
-                      background: "linear-gradient(135deg, #C9A84C, #A8893A)",
-                      color: "#0A0A0A",
-                      boxShadow: "0 4px 16px rgba(201,168,76,0.25)",
-                    }}
+                    className="btn-apple text-xs px-4 py-2 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     دخول بـ Google
                   </button>
                   {showLoginPopup && (
-                    <div
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
                       className="absolute top-12 left-0 p-4 rounded-2xl z-50 shadow-2xl"
-                      style={{ background: "#1A1A1A", border: "1px solid rgba(201,168,76,0.2)", minWidth: 280 }}
+                      style={{
+                        background: "var(--bg-secondary)",
+                        border: "1px solid var(--border-default)",
+                        minWidth: 280,
+                      }}
                     >
-                      <p className="text-sm mb-3 text-center" style={{ color: "#9A8F7A" }}>
+                      <p className="text-sm mb-3 text-center" style={{ color: "var(--text-muted)" }}>
                         سجّل دخولك للحصول على استشارتك المجانية
                       </p>
                       <GoogleLoginButton onSuccess={() => setShowLoginPopup(false)} />
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               )}
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="lg:hidden p-2 rounded-lg transition-colors"
-                style={{ color: "#9A8F7A" }}
+                className="lg:hidden p-2 rounded-lg transition-colors cursor-pointer"
+                style={{ color: "var(--text-muted)" }}
               >
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -167,7 +175,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 lg:hidden pt-20 px-8"
-            style={{ backgroundColor: "rgba(10,10,10,0.98)", backdropFilter: "blur(20px)" }}
+            style={{ backgroundColor: "rgba(247,244,238,0.97)", backdropFilter: "blur(28px) saturate(160%)" }}
           >
             <nav className="space-y-1">
               {navLinks.map((link, i) => (
@@ -179,15 +187,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <Link
                     to={link.path}
-                    className="flex items-center justify-between py-4 text-lg font-medium border-b transition-colors"
+                    className="flex items-center justify-between py-4 text-lg font-medium border-b transition-colors cursor-pointer"
                     style={{
-                      color: isActive(link.path) ? "#C9A84C" : "#9A8F7A",
-                      borderColor: "rgba(255,255,255,0.06)",
+                      color: isActive(link.path) ? "#C9A84C" : "var(--text-muted)",
+                      borderColor: "var(--border-subtle)",
                     }}
                   >
                     {link.label}
                     {isActive(link.path) && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#C9A84C" }} />
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#C9A84C" }} />
                     )}
                   </Link>
                 </motion.div>
@@ -195,12 +203,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="mt-8">
-              <Link
-                to="/ai-advisor"
-                className="btn-apple w-full justify-center text-base"
-              >
+              <Link to="/ai-advisor" className="btn-apple w-full justify-center text-base">
                 <Sparkles className="w-4 h-4" />
-                جرب المستشار الذكي
+                جرّب المستشار الذكي
               </Link>
             </div>
           </motion.div>
@@ -211,37 +216,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="pt-16">{children}</main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(201,168,76,0.12)", backgroundColor: "#080808" }}>
+      <footer style={{ borderTop: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-secondary)" }}>
         <div className="max-w-6xl mx-auto px-6 sm:px-8 py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
 
             <div className="md:col-span-1">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)", boxShadow: "0 4px 16px rgba(201,168,76,0.25)" }}
-                >
-                  <Scale className="w-4 h-4" style={{ color: "#0A0A0A" }} />
-                </div>
-                <span className="text-base font-bold" style={{ color: "#F0EAD8" }}>مسؤول</span>
+              <div className="mb-5">
+                <MasoulLogo size={30} id="footer" />
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: "#5A5248" }}>
-                المستشار القانوني الذكي. تحليل دقيق، فوري، مبني على الأنظمة السعودية.
+              <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--text-faint)" }}>
+                المستشار القانوني الذكي. تحليل دقيق وفوري مبني على الأنظمة السعودية.
               </p>
-              <div className="mt-6 h-px" style={{ background: "linear-gradient(90deg, rgba(201,168,76,0.3), transparent)" }} />
+              <div className="flex items-center gap-2 mt-4">
+                <Shield className="w-3.5 h-3.5" style={{ color: "var(--accent-green)" }} />
+                <span className="text-xs" style={{ color: "var(--accent-green)" }}>سرية تامة لجميع الاستفسارات</span>
+              </div>
+              <div className="mt-5 h-px" style={{ background: "linear-gradient(90deg, rgba(201,168,76,0.3), transparent)" }} />
             </div>
 
             <div>
-              <h4 className="text-xs font-semibold uppercase mb-4 tracking-widest" style={{ color: "#C9A84C" }}>الصفحات</h4>
+              <h4 className="text-xs font-bold uppercase mb-4 tracking-widest" style={{ color: "var(--accent-gold)" }}>الصفحات</h4>
               <div className="space-y-3">
                 {navLinks.map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}
-                    className="block text-sm transition-colors"
-                    style={{ color: "#5A5248" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#C9A84C")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#5A5248")}
+                    className="block text-sm transition-colors duration-200 cursor-pointer"
+                    style={{ color: "var(--text-faint)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-gold)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
                   >
                     {link.label}
                   </Link>
@@ -250,23 +253,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div>
-              <h4 className="text-xs font-semibold uppercase mb-4 tracking-widest" style={{ color: "#C9A84C" }}>التواصل</h4>
-              <div className="space-y-3 text-sm" style={{ color: "#5A5248" }}>
+              <h4 className="text-xs font-bold uppercase mb-4 tracking-widest" style={{ color: "var(--accent-gold)" }}>التواصل</h4>
+              <div className="space-y-3 text-sm" style={{ color: "var(--text-faint)" }}>
                 <p>الرياض، المملكة العربية السعودية</p>
                 <p>info@masoul-law.sa</p>
-                <p>للتواصل عبر الموقع</p>
+                <p>السبت — الخميس: ٩ ص — ٦ م</p>
               </div>
             </div>
           </div>
 
           <div
-            className="mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+            className="mt-14 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4"
+            style={{ borderTop: "1px solid var(--border-subtle)" }}
           >
-            <p className="text-xs" style={{ color: "#3A3530" }}>
-              شركة مسؤول للمحاماة {new Date().getFullYear()}
+            <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+              © {new Date().getFullYear()} شركة مسؤول للمحاماة — جميع الحقوق محفوظة
             </p>
-            <p className="text-xs" style={{ color: "#3A3530" }}>جميع الحقوق محفوظة</p>
+            <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+              مرخّصة وفق أنظمة المملكة العربية السعودية
+            </p>
           </div>
         </div>
       </footer>
