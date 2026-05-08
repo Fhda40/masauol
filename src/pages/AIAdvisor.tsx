@@ -6,7 +6,7 @@ import {
   Send, Plus, Brain, MessageSquare, Scale, Shield,
   FileSearch, BookOpen, Zap, Target, Database,
   Loader2, ChevronDown, ChevronUp, AlertCircle,
-  Phone, X, History,
+  Phone, X, History, Paperclip, FileText,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
@@ -360,8 +360,11 @@ export default function AIAdvisor() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [attachedPdf, setAttachedPdf] = useState<File | null>(null);
+  const [pdfExtracting, setPdfExtracting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const autoLoadedRef = useRef(false);
   const fingerprint = getDeviceFingerprint();
 
@@ -426,10 +429,33 @@ export default function AIAdvisor() {
   });
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    const text = input.trim();
+    if ((!input.trim() && !attachedPdf) || isLoading) return;
+    let text = input.trim();
     setInput("");
     setError(null);
+
+    /* Extract PDF text if attached */
+    if (attachedPdf) {
+      setPdfExtracting(true);
+      try {
+        const fd = new FormData();
+        fd.append("pdf", attachedPdf);
+        const res = await fetch("/api/pdf/extract", { method: "POST", body: fd });
+        const data = await res.json() as { text?: string; pages?: number; filename?: string; error?: string };
+        if (data.error) throw new Error(data.error);
+        const pdfHeader = `[محتوى ملف PDF: ${attachedPdf.name} — ${data.pages} صفحة]\n${data.text}`;
+        text = text ? `${text}\n\n${pdfHeader}` : pdfHeader;
+      } catch (e: any) {
+        setError(e.message || "تعذّر قراءة الملف");
+        setPdfExtracting(false);
+        return;
+      } finally {
+        setPdfExtracting(false);
+        setAttachedPdf(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+
     setMessages(prev => [...prev, { id: Date.now(), role: "user", content: text }]);
 
     let convId = currentConvId;
@@ -887,61 +913,143 @@ export default function AIAdvisor() {
             background: "rgba(255,255,255,0.88)",
             backdropFilter: "blur(20px) saturate(160%)",
           }}>
-          <div className="flex items-end gap-3 max-w-3xl mx-auto">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-              }}
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-              }}
-              placeholder="صف قضيتك... (Enter للإرسال، Shift+Enter لسطر جديد)"
-              disabled={isLoading}
-              rows={1}
-              className="flex-1 resize-none rounded-2xl px-4 py-3 text-sm outline-none transition-all"
-              style={{
-                background: "rgba(255,255,255,0.80)",
-                border: "1.5px solid rgba(201,168,76,0.20)",
-                color: "#0F172A",
-                minHeight: 44,
-                maxHeight: 120,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = "rgba(201,168,76,0.50)";
-                e.target.style.boxShadow = "0 0 0 3px rgba(201,168,76,0.08)";
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = "rgba(201,168,76,0.20)";
-                e.target.style.boxShadow = "0 1px 4px rgba(0,0,0,0.04)";
-              }}
-            />
-            <motion.button
-              onClick={handleSend}
-              disabled={isLoading || !input.trim()}
-              whileHover={!isLoading && input.trim() ? { scale: 1.04 } : {}}
-              whileTap={!isLoading && input.trim() ? { scale: 0.96 } : {}}
-              className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer"
-              style={{
-                background: isLoading || !input.trim()
-                  ? "rgba(201,168,76,0.10)"
-                  : "linear-gradient(135deg, #C9A84C, #A8893A)",
-                color: isLoading || !input.trim() ? "#b0a070" : "#fff",
-                boxShadow: !isLoading && input.trim()
-                  ? "0 4px 14px rgba(201,168,76,0.30)"
-                  : "none",
-              }}>
-              {isLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Send className="w-4 h-4" />}
-            </motion.button>
+          <div className="max-w-3xl mx-auto">
+
+            {/* Attached PDF chip */}
+            {attachedPdf && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                className="flex items-center gap-2 mb-2 px-3 py-2 rounded-2xl w-fit"
+                style={{
+                  background: "rgba(255,248,230,0.90)",
+                  border: "1px solid rgba(201,168,76,0.30)",
+                  maxWidth: "100%",
+                }}>
+                <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C9A84C" }} />
+                <span className="text-xs truncate max-w-[200px]" style={{ color: "#A8893A" }}>
+                  {attachedPdf.name}
+                </span>
+                <span className="text-[10px]" style={{ color: "#94a3b8" }}>
+                  ({(attachedPdf.size / 1024).toFixed(0)} KB)
+                </span>
+                <button
+                  onClick={() => {
+                    setAttachedPdf(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="flex-shrink-0 p-0.5 rounded-full cursor-pointer transition-colors"
+                  style={{ color: "#94a3b8" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#dc2626")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}>
+                  <X className="w-3 h-3" />
+                </button>
+              </motion.div>
+            )}
+
+            {/* Input row */}
+            <div className="flex items-end gap-2">
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.size > 10 * 1024 * 1024) {
+                    setError("الملف كبير جداً — الحد الأقصى 10MB");
+                    return;
+                  }
+                  setAttachedPdf(f);
+                  setError(null);
+                }}
+              />
+
+              {/* Attach PDF button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || pdfExtracting}
+                title="إرفاق ملف PDF"
+                className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer"
+                style={{
+                  background: attachedPdf
+                    ? "rgba(201,168,76,0.14)"
+                    : "rgba(255,255,255,0.75)",
+                  border: `1.5px solid ${attachedPdf ? "rgba(201,168,76,0.40)" : "rgba(201,168,76,0.20)"}`,
+                  color: attachedPdf ? "#C9A84C" : "#94a3b8",
+                }}
+                onMouseEnter={e => {
+                  if (!attachedPdf) (e.currentTarget as HTMLElement).style.color = "#C9A84C";
+                }}
+                onMouseLeave={e => {
+                  if (!attachedPdf) (e.currentTarget as HTMLElement).style.color = "#94a3b8";
+                }}>
+                <Paperclip className="w-4 h-4" />
+              </button>
+
+              {/* Textarea */}
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                }}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                }}
+                placeholder={attachedPdf ? "اكتب سؤالك عن الملف المرفق... (اختياري)" : "صف قضيتك... (Enter للإرسال، Shift+Enter لسطر جديد)"}
+                disabled={isLoading || pdfExtracting}
+                rows={1}
+                className="flex-1 resize-none rounded-2xl px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.80)",
+                  border: "1.5px solid rgba(201,168,76,0.20)",
+                  color: "#0F172A",
+                  minHeight: 44,
+                  maxHeight: 120,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                }}
+                onFocus={e => {
+                  e.target.style.borderColor = "rgba(201,168,76,0.50)";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(201,168,76,0.08)";
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = "rgba(201,168,76,0.20)";
+                  e.target.style.boxShadow = "0 1px 4px rgba(0,0,0,0.04)";
+                }}
+              />
+
+              {/* Send button */}
+              <motion.button
+                onClick={handleSend}
+                disabled={isLoading || pdfExtracting || (!input.trim() && !attachedPdf)}
+                whileHover={!isLoading && !pdfExtracting && (!!input.trim() || !!attachedPdf) ? { scale: 1.04 } : {}}
+                whileTap={!isLoading && !pdfExtracting && (!!input.trim() || !!attachedPdf) ? { scale: 0.96 } : {}}
+                className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer"
+                style={{
+                  background: (isLoading || pdfExtracting || (!input.trim() && !attachedPdf))
+                    ? "rgba(201,168,76,0.10)"
+                    : "linear-gradient(135deg, #C9A84C, #A8893A)",
+                  color: (isLoading || pdfExtracting || (!input.trim() && !attachedPdf)) ? "#b0a070" : "#fff",
+                  boxShadow: (!isLoading && !pdfExtracting && (!!input.trim() || !!attachedPdf))
+                    ? "0 4px 14px rgba(201,168,76,0.30)"
+                    : "none",
+                }}>
+                {(isLoading || pdfExtracting)
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Send className="w-4 h-4" />}
+              </motion.button>
+            </div>
           </div>
+
           <p className="text-center text-[10px] mt-2" style={{ color: "#94a3b8" }}>
-            مسؤول للمحاماة — التحليل للاستئناس فقط ولا يغني عن مراجعة محامٍ مختص
+            مسؤول للمحاماة — التحليل للاستئناس فقط ولا يغني عن مراجعة محامٍ مختص • PDF بحد أقصى 10MB
           </p>
         </div>
       </div>
