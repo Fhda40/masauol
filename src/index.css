@@ -108,6 +108,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* iOS Safari: fixed background flickers — switch to scroll on mobile */
+@media (max-width: 1024px) {
+  body { background-attachment: scroll; }
+}
+
 /* ═══════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════ */

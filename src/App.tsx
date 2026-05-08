@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, Routes, Route } from "react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import Layout from "./components/Layout";
@@ -35,6 +36,40 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  /* Mirror backdrop-filter → -webkit-backdrop-filter for Safari/iOS */
+  useEffect(() => {
+    const apply = (root: Document | Element = document) => {
+      (root === document ? document.querySelectorAll('[style]') : (root as Element).querySelectorAll('[style]'))
+        .forEach(el => {
+          const s = (el as HTMLElement).style;
+          if (s.backdropFilter && s.webkitBackdropFilter !== s.backdropFilter) {
+            s.webkitBackdropFilter = s.backdropFilter;
+          }
+        });
+    };
+
+    apply();
+
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        if (m.type === "attributes") {
+          const s = (m.target as HTMLElement).style;
+          if (s?.backdropFilter && s.webkitBackdropFilter !== s.backdropFilter) {
+            s.webkitBackdropFilter = s.backdropFilter;
+          }
+        } else {
+          m.addedNodes.forEach(n => { if (n.nodeType === 1) apply(n as Element); });
+        }
+      });
+    });
+
+    observer.observe(document.body, {
+      childList: true, subtree: true,
+      attributes: true, attributeFilter: ["style"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <Layout>
       <AnimatedRoutes />

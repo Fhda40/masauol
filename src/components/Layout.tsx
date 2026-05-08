@@ -56,6 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         style={{
           backgroundColor: scrolled ? "rgba(255,255,255,0.88)" : "transparent",
           backdropFilter: scrolled ? "blur(20px) saturate(160%)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(160%)" : "none",
           borderBottom: scrolled ? "1px solid rgba(201,168,76,0.12)" : "1px solid transparent",
           boxShadow: scrolled ? "0 1px 20px rgba(0,0,0,0.06)" : "none",
         }}
@@ -175,7 +176,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 lg:hidden pt-20 px-8"
-            style={{ backgroundColor: "rgba(247,244,238,0.97)", backdropFilter: "blur(28px) saturate(160%)" }}
+            style={{ backgroundColor: "rgba(247,244,238,0.97)", backdropFilter: "blur(28px) saturate(160%)", WebkitBackdropFilter: "blur(28px) saturate(160%)" }}
           >
             <nav className="space-y-1">
               {navLinks.map((link, i) => (

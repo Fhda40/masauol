@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -12,108 +12,160 @@ import { trpc } from "@/providers/trpc";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { useAuth, GoogleLoginButton } from "@/providers/AuthProvider";
 
+/* ─── Context to distinguish ul vs ol for list items ─── */
+const ListTypeCtx = createContext<"ul" | "ol">("ul");
+
 /* ─── Markdown Renderer ─── */
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ children }) => (
-          <h1 style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0F172A", marginBottom: "0.5rem", marginTop: "0.75rem", fontFamily: "'EB Garamond', serif", lineHeight: 1.4 }}>
-            {children}
-          </h1>
-        ),
-        h2: ({ children }) => (
-          <h2 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", marginBottom: "0.4rem", marginTop: "0.7rem", lineHeight: 1.4 }}>
-            {children}
-          </h2>
-        ),
-        h3: ({ children }) => (
-          <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#A8893A", marginBottom: "0.3rem", marginTop: "0.6rem", lineHeight: 1.4 }}>
-            {children}
-          </h3>
-        ),
-        p: ({ children }) => (
-          <p style={{ fontSize: "0.875rem", lineHeight: 1.75, color: "#1e293b", marginBottom: "0.5rem" }}>
-            {children}
-          </p>
-        ),
-        ul: ({ children }) => (
-          <ul style={{ paddingRight: "1.25rem", paddingLeft: 0, marginBottom: "0.5rem", listStyleType: "disc" }}>
-            {children}
-          </ul>
-        ),
-        ol: ({ children }) => (
-          <ol style={{ paddingRight: "1.25rem", paddingLeft: 0, marginBottom: "0.5rem", listStyleType: "decimal" }}>
-            {children}
-          </ol>
-        ),
-        li: ({ children }) => (
-          <li style={{ fontSize: "0.875rem", lineHeight: 1.7, color: "#1e293b", marginBottom: "0.2rem" }}>
-            {children}
-          </li>
-        ),
-        strong: ({ children }) => (
-          <strong style={{ fontWeight: 700, color: "#0F172A" }}>
-            {children}
-          </strong>
-        ),
-        em: ({ children }) => (
-          <em style={{ color: "#475569", fontStyle: "italic" }}>{children}</em>
-        ),
-        hr: () => (
-          <hr style={{ border: "none", borderTop: "1px solid rgba(201,168,76,0.20)", margin: "0.6rem 0" }} />
-        ),
-        blockquote: ({ children }) => (
-          <blockquote style={{
-            borderRight: "3px solid #C9A84C",
-            paddingRight: "0.75rem",
-            paddingLeft: "0.5rem",
-            margin: "0.5rem 0",
-            color: "#475569",
-            fontSize: "0.85rem",
-            lineHeight: 1.65,
-            background: "rgba(201,168,76,0.04)",
-            borderRadius: "0 8px 8px 0",
-          }}>
-            {children}
-          </blockquote>
-        ),
-        code: ({ children, className }) => {
-          const isBlock = className?.includes("language-");
-          return isBlock ? (
-            <code style={{
-              display: "block",
-              background: "rgba(15,23,42,0.06)",
-              border: "1px solid rgba(201,168,76,0.12)",
-              borderRadius: "8px",
-              padding: "0.5rem 0.75rem",
-              fontSize: "0.8rem",
-              color: "#1e293b",
-              margin: "0.4rem 0",
-              overflowX: "auto",
-              fontFamily: "monospace",
-              whiteSpace: "pre-wrap",
+    <div style={{ direction: "rtl", textAlign: "right" }}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => (
+            <h1 style={{
+              fontSize: "1.1rem", fontWeight: 700, color: "#0F172A",
+              marginBottom: "0.5rem", marginTop: "1rem",
+              fontFamily: "'EB Garamond', serif", lineHeight: 1.4,
+              paddingBottom: "0.3rem",
+              borderBottom: "2px solid rgba(201,168,76,0.25)",
             }}>
               {children}
-            </code>
-          ) : (
-            <code style={{
-              background: "rgba(201,168,76,0.10)",
-              borderRadius: "4px",
-              padding: "1px 5px",
-              fontSize: "0.82rem",
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 style={{
+              fontSize: "1rem", fontWeight: 700, color: "#1e293b",
+              marginBottom: "0.4rem", marginTop: "0.9rem", lineHeight: 1.4,
+            }}>
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 style={{
+              fontSize: "0.9rem", fontWeight: 700,
               color: "#A8893A",
-              fontFamily: "monospace",
+              marginBottom: "0.35rem", marginTop: "0.8rem", lineHeight: 1.4,
+              display: "flex", alignItems: "center", gap: "0.4rem",
+            }}>
+              <span style={{
+                display: "inline-block", width: "3px", height: "0.9rem",
+                background: "linear-gradient(180deg, #C9A84C, #A8893A)",
+                borderRadius: "2px", flexShrink: 0,
+              }} />
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => (
+            <p style={{
+              fontSize: "0.875rem", lineHeight: 1.8,
+              color: "#1e293b", marginBottom: "0.6rem",
             }}>
               {children}
-            </code>
-          );
-        },
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+            </p>
+          ),
+          ul: ({ children }) => (
+            <ListTypeCtx.Provider value="ul">
+              <ul style={{
+                paddingRight: "1.1rem", paddingLeft: 0,
+                marginBottom: "0.6rem", marginTop: "0.2rem",
+                listStyleType: "none",
+              }}>
+                {children}
+              </ul>
+            </ListTypeCtx.Provider>
+          ),
+          ol: ({ children }) => (
+            <ListTypeCtx.Provider value="ol">
+              <ol style={{
+                paddingRight: "1.4rem", paddingLeft: 0,
+                marginBottom: "0.6rem", marginTop: "0.2rem",
+                listStyleType: "decimal",
+              }}>
+                {children}
+              </ol>
+            </ListTypeCtx.Provider>
+          ),
+          li: ({ children }) => {
+            const listType = useContext(ListTypeCtx);
+            const isBullet = listType === "ul";
+            return (
+              <li style={{
+                fontSize: "0.875rem", lineHeight: 1.7,
+                color: "#1e293b", marginBottom: "0.3rem",
+                display: "flex", alignItems: "flex-start", gap: "0.5rem",
+              }}>
+                {isBullet && (
+                  <span style={{
+                    display: "inline-block", width: "5px", height: "5px",
+                    borderRadius: "50%", background: "#C9A84C",
+                    flexShrink: 0, marginTop: "0.55rem",
+                  }} />
+                )}
+                <span style={{ flex: 1 }}>{children}</span>
+              </li>
+            );
+          },
+          strong: ({ children }) => (
+            <strong style={{ fontWeight: 700, color: "#0F172A" }}>
+              {children}
+            </strong>
+          ),
+          em: ({ children }) => (
+            <em style={{ color: "#64748b", fontStyle: "italic" }}>{children}</em>
+          ),
+          hr: () => (
+            <hr style={{
+              border: "none",
+              borderTop: "1px solid rgba(201,168,76,0.22)",
+              margin: "0.8rem 0",
+            }} />
+          ),
+          blockquote: ({ children }) => (
+            <blockquote style={{
+              borderRight: "3px solid #C9A84C",
+              paddingRight: "0.85rem", paddingLeft: "0.5rem",
+              margin: "0.6rem 0",
+              color: "#475569", fontSize: "0.86rem", lineHeight: 1.7,
+              background: "rgba(201,168,76,0.05)",
+              borderRadius: "0 10px 10px 0",
+              paddingTop: "0.4rem", paddingBottom: "0.4rem",
+            }}>
+              {children}
+            </blockquote>
+          ),
+          code: ({ children, className }) => {
+            const isBlock = className?.includes("language-");
+            return isBlock ? (
+              <code style={{
+                display: "block",
+                background: "rgba(15,23,42,0.05)",
+                border: "1px solid rgba(201,168,76,0.15)",
+                borderRadius: "8px",
+                padding: "0.6rem 0.85rem",
+                fontSize: "0.8rem", color: "#1e293b",
+                margin: "0.5rem 0", overflowX: "auto",
+                fontFamily: "monospace", whiteSpace: "pre-wrap",
+                direction: "ltr", textAlign: "left",
+              }}>
+                {children}
+              </code>
+            ) : (
+              <code style={{
+                background: "rgba(201,168,76,0.12)",
+                borderRadius: "4px", padding: "1px 6px",
+                fontSize: "0.82rem", color: "#A8893A",
+                fontFamily: "monospace",
+              }}>
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -417,7 +469,7 @@ export default function AIAdvisor() {
   /* ─── Loading screen ─── */
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+      <div className="flex items-center justify-center h-[calc(100dvh-64px)]">
         <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#C9A84C" }} />
       </div>
     );
@@ -426,7 +478,7 @@ export default function AIAdvisor() {
   /* ─── Login screen ─── */
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4 py-12" dir="rtl">
+      <div className="flex items-center justify-center min-h-[calc(100dvh-64px)] px-4 py-12" dir="rtl">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm">
 
@@ -490,7 +542,7 @@ export default function AIAdvisor() {
 
   /* ─── Chat UI ─── */
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden" dir="rtl">
+    <div className="flex h-[calc(100dvh-64px)] overflow-hidden" dir="rtl">
 
       {/* Sidebar overlay on mobile */}
       <AnimatePresence>
