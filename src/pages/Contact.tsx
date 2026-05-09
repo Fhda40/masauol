@@ -263,7 +263,7 @@ export default function Contact() {
                 style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(201,168,76,0.12)", backdropFilter: "blur(12px)" }}>
                 <h3 className="font-bold" style={{ color: "var(--text-primary)" }}>معلومات التواصل</h3>
                 {[
-                  { icon: Phone,  label: "الهاتف",     val: "+966 XX XXX XXXX" },
+                  { icon: Phone,  label: "الهاتف",     val: "+966 550 341 728" },
                   { icon: Mail,   label: "البريد",     val: "info@masoul-law.sa" },
                   { icon: MapPin, label: "الموقع",     val: "الرياض، المملكة العربية السعودية" },
                   { icon: Clock,  label: "أوقات العمل", val: "السبت — الخميس: ٩ص — ٦م" },

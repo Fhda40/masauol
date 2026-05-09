@@ -180,7 +180,7 @@ export default function PrivacyPolicy() {
               </div>
               <div className="flex items-center gap-3 text-sm" style={{ color: "var(--text-muted)" }}>
                 <Phone className="w-4 h-4" style={{ color: "#C9A84C" }} />
-                <span>+966 XX XXX XXXX</span>
+                <span>+966 550 341 728</span>
               </div>
             </div>
           </motion.div>
