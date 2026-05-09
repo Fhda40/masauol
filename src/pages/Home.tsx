@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Scale, Shield, Briefcase, Gavel, Lock,
   Brain, ArrowLeft, ChevronDown, Star,
-  FileSearch, Clock, CheckCircle, Zap,
+  FileSearch, Clock, CheckCircle, Zap, Quote,
 } from "lucide-react";
 import HeroScene from "@/components/HeroScene";
 
@@ -27,6 +27,30 @@ const SERVICES = [
   { icon: Scale,       color: "#9B59B6", num: "04", title: "الأحوال الشخصية",       desc: "طلاق، حضانة، نفقة، ميراث — تحليل مبني على نظام الأحوال الشخصية" },
   { icon: Lock,        color: "#E74C3C", num: "05", title: "المخدرات والجرائم الجنائية", desc: "حيازة، اتجار، تعاطٍ، حقوق المتهم وإجراءات التقاضي" },
   { icon: FileSearch,  color: "#F39C12", num: "06", title: "القضايا التجارية",      desc: "نزاعات الشركات، عقود تجارية، إفلاس، تأسيس شركات وحوكمة" },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "أحمد الشمري",
+    role: "مدير شركة",
+    text: "ساعدني مسؤول في فهم حقوقي كاملاً في نزاع تجاري معقد. التحليل كان دقيقاً ومبنياً على مواد قانونية محددة. وفّر عليّ آلاف الريالات في استشارات أولية.",
+    rating: 5,
+    tag: "قضية تجارية",
+  },
+  {
+    name: "سارة العتيبي",
+    role: "موظفة سابقة",
+    text: "تعرضت لفصل تعسفي وما كنت أعرف حقوقي. مسؤول شرح لي كل شيء بالتفصيل — المادة ٧٧ من نظام العمل، ومقدار التعويض الذي يحق لي. الحمد لله استردّيت حقوقي كاملاً.",
+    rating: 5,
+    tag: "قضية عمالية",
+  },
+  {
+    name: "محمد الزهراني",
+    role: "صاحب مشروع",
+    text: "تعرضت لابتزاز إلكتروني وكنت في حالة ذعر. مسؤول حدّد المواد القانونية الدقيقة وأعطاني خطة عمل واضحة. بلّغت الجهات المختصة بسرعة والحمد لله انتهت القضية لصالحي.",
+    rating: 5,
+    tag: "جريمة إلكترونية",
+  },
 ];
 
 const FEATURES = [
@@ -616,6 +640,86 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* ══ TESTIMONIALS ═════════════════════════════════════════════════ */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(201,168,76,0.04) 0%, transparent 70%)",
+        }} />
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}>
+              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+                آراء العملاء
+              </p>
+              <h2 className="text-4xl lg:text-5xl font-bold" style={{ fontFamily: "'EB Garamond', serif" }}>
+                ماذا قالوا عن <span style={{
+                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>مسؤول</span>
+              </h2>
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {TESTIMONIALS.map((t, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.12 }}
+                className="p-7 rounded-3xl relative"
+                style={{
+                  background: "rgba(255,255,255,0.78)",
+                  border: "1px solid rgba(201,168,76,0.10)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                  transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-5px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 16px 40px rgba(201,168,76,0.10)";
+                  (e.currentTarget as HTMLElement).style.border = "1px solid rgba(201,168,76,0.25)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)";
+                  (e.currentTarget as HTMLElement).style.border = "1px solid rgba(201,168,76,0.10)";
+                }}
+              >
+                <Quote className="w-8 h-8 mb-4" style={{ color: "rgba(201,168,76,0.35)" }} />
+
+                <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+                  {t.text}
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t.name}</p>
+                    <p className="text-xs" style={{ color: "var(--text-faint)" }}>{t.role}</p>
+                  </div>
+                  <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold"
+                    style={{ background: "rgba(201,168,76,0.10)", color: "#C9A84C" }}>
+                    {t.tag}
+                  </span>
+                </div>
+
+                {/* Stars */}
+                <div className="flex gap-1 mt-4">
+                  {Array.from({ length: t.rating }).map((_, j) => (
+                    <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: "#C9A84C" }} />
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
