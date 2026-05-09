@@ -300,7 +300,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="space-y-3 text-sm" style={{ color: "var(--text-faint)" }}>
                 <p>الرياض - حي السليمانية - طريق صلاح الدين الأيوبي</p>
                 <p>law2030m@gmail.com</p>
-                <p>+966 550 341 728 | +966 504 244 498</p>
+                <p dir="ltr" style={{ textAlign: "right" }}>+966 550 341 728 | +966 504 244 498</p>
                 <p>السبت — الخميس: ٩ ص — ٦ م</p>
               </div>
               {/* Social Links */}
