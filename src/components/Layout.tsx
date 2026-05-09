@@ -5,7 +5,7 @@ import { Menu, X, Sparkles, LogOut, Shield, MessageCircle } from "lucide-react";
 import { useAuth, GoogleLoginButton } from "@/providers/AuthProvider";
 import MasoulLogo from "@/components/MasoulLogo";
 
-const WHATSAPP_NUMBER = "966500000000";
+const WHATSAPP_NUMBER = "966550341728";
 
 const navLinks = [
   { path: "/", label: "الرئيسية" },
