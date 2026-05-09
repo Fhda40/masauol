@@ -405,9 +405,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-xs" style={{ color: "var(--text-faint)" }}>
               © {new Date().getFullYear()} شركة مسؤول للمحاماة — جميع الحقوق محفوظة
             </p>
-            <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-              مرخّصة وفق أنظمة المملكة العربية السعودية
-            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-3 text-xs" style={{ color: "var(--text-faint)" }}>
+              <span>مرخّصة وفق أنظمة المملكة العربية السعودية</span>
+              <span className="hidden sm:block opacity-30">·</span>
+              <span>
+                تطوير{" "}
+                <a
+                  href="mailto:ifhd.saiari@gmail.com"
+                  style={{ color: "var(--accent-gold)", textDecoration: "none" }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+                >
+                  Fahad Alsaiari
+                </a>
+              </span>
+            </div>
           </div>
         </div>
       </footer>
