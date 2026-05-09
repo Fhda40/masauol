@@ -2,7 +2,58 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "../middleware";
 import { getDb } from "../queries/connection";
 import { legalChunks } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, like, or } from "drizzle-orm";
+
+const LAW_META: Record<string, { nameAr: string; category: string; description: string; icon: string }> = {
+  "نظام مكافحة الجرائم المعلوماتية": {
+    nameAr: "نظام مكافحة الجرائم المعلوماتية",
+    category: "cybercrime",
+    description: "يُنظّم الجرائم الإلكترونية كالابتزاز والاحتيال والاختراق والتشهير عبر الشبكات",
+    icon: "shield",
+  },
+  "نظام العمل السعودي": {
+    nameAr: "نظام العمل السعودي",
+    category: "labor",
+    description: "يُنظّم العلاقة بين صاحب العمل والموظف: العقود والرواتب والإجازات ونهاية الخدمة",
+    icon: "briefcase",
+  },
+  "نظام التنفيذ السعودي": {
+    nameAr: "نظام التنفيذ السعودي",
+    category: "enforcement",
+    description: "يُنظّم تنفيذ الأحكام القضائية والسندات التنفيذية والحجز وإجراءات استيفاء الديون",
+    icon: "gavel",
+  },
+  "نظام مكافحة المخدرات والمؤثرات العقلية": {
+    nameAr: "نظام مكافحة المخدرات والمؤثرات العقلية",
+    category: "drugs",
+    description: "يُحدّد عقوبات حيازة المخدرات وتعاطيها والاتجار بها والجرائم المرتبطة",
+    icon: "alert-triangle",
+  },
+  "نظام الأحوال الشخصية السعودي": {
+    nameAr: "نظام الأحوال الشخصية السعودي",
+    category: "family",
+    description: "يُنظّم أحكام الزواج والطلاق والحضانة والنفقة والمواريث وفق أحكام الشريعة الإسلامية",
+    icon: "heart",
+  },
+  "نظام الشركات السعودي": {
+    nameAr: "نظام الشركات السعودي",
+    category: "commercial",
+    description: "يُنظّم تأسيس الشركات وأنواعها وحوكمتها والنزاعات التجارية والإفلاس",
+    icon: "building",
+  },
+  "نظام الإجراءات الجزائية": {
+    nameAr: "نظام الإجراءات الجزائية",
+    category: "criminal",
+    description: "يُنظّم إجراءات التحقيق والاتهام والمحاكمة الجزائية وحقوق المتهم",
+    icon: "scale",
+  },
+  "نظام الإجراءات المدنية": {
+    nameAr: "نظام الإجراءات المدنية",
+    category: "civil",
+    description: "يُنظّم إجراءات التقاضي المدني وتقديم الدعاوى وقواعد الإثبات والتقادم",
+    icon: "file-text",
+  },
+};
 
 // Category to keywords mapping for retrieval
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
@@ -28,6 +79,30 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "مستحقات", "تعويض", "إجازة", "عمل إضافي", "إصابة عمل",
     "عقد عمل", "فترة تجربة", "إشعار", "استقالة", "نزاع عمالي",
     "هيئة تسوية", "محكمة عمالية", "تأمينات", "نفقة", "حضانة",
+  ],
+  family: [
+    "طلاق", "زواج", "حضانة", "نفقة", "خلع", "فسخ", "مهر", "عقد زواج",
+    "زوجة", "زوج", "أبناء", "أطفال", "ولاية", "وصية", "ميراث", "إرث",
+    "تركة", "أحوال شخصية", "رضاعة", "حضانة الأطفال", "طاعة", "نشوز",
+    "عدة", "رجعة", "بائن", "مهر المثل", "نسب", "لقيط",
+  ],
+  commercial: [
+    "شركة", "تأسيس شركة", "مساهمة", "ذات مسؤولية محدودة", "شراكة",
+    "إفلاس", "تصفية", "رأس مال", "أسهم", "مساهم", "مجلس إدارة",
+    "عقد تجاري", "نزاع تجاري", "تجاري", "توزيع أرباح", "اندماج",
+    "اكتساب", "حوكمة", "ترخيص تجاري", "سجل تجاري",
+  ],
+  criminal: [
+    "جريمة", "جناية", "جنحة", "توقيف", "اعتقال", "احتجاز", "تحقيق",
+    "المتهم", "المظنون", "اعتراف", "شهادة", "إثبات", "حكم جنائي",
+    "استئناف جنائي", "النيابة العامة", "ادعاء", "دفاع", "سجن", "عقوبة",
+    "تعزير", "قصاص", "دية", "حد", "محكمة جزائية",
+  ],
+  civil: [
+    "دعوى مدنية", "إجراءات مدنية", "تقادم", "التقادم", "اختصاص",
+    "اختصاص المحكمة", "تبليغ", "إخطار", "اعتراض", "طعن",
+    "استئناف مدني", "تحكيم", "وساطة", "إثبات مدني", "بينة",
+    "عبء الإثبات", "شهود", "خبرة", "خبير", "حكم مدني", "تنفيذ حكم",
   ],
 };
 
@@ -195,28 +270,44 @@ export const legalRouter = createRouter({
       return { message: "Already seeded", count: existing[0].count };
     }
 
-    // Load from JSON
     const fs = await import("fs");
     const path = await import("path");
-    const kbPath = path.resolve("api/legal-systems/legal-kb.json");
-    const raw = fs.readFileSync(kbPath, "utf-8");
-    const kb = JSON.parse(raw);
 
-    const chunks = kb.chunks.map((chunk: any) => ({
-      lawName: chunk.law_name,
-      chapter: chunk.chapter,
-      articleNumber: chunk.article_number,
-      articleText: chunk.article_text,
-      tags: chunk.tags,
-      category: chunk.category,
-    }));
+    // Load all 8 law chunk files
+    const chunkFiles = [
+      "cybercrime-chunks.json",
+      "labor-chunks.json",
+      "enforcement-chunks.json",
+      "drugs-chunks.json",
+      "personal-status-chunks.json",
+      "companies-chunks.json",
+      "criminal-procedure-chunks.json",
+      "civil-procedure-chunks.json",
+    ];
 
-    for (let i = 0; i < chunks.length; i += 20) {
-      const batch = chunks.slice(i, i + 20);
-      await db.insert(legalChunks).values(batch);
+    const allChunks: any[] = [];
+    for (const file of chunkFiles) {
+      const kbPath = path.resolve("api/legal-systems", file);
+      if (!fs.existsSync(kbPath)) continue;
+      const raw = fs.readFileSync(kbPath, "utf-8");
+      const kb = JSON.parse(raw);
+      for (const chunk of kb.chunks) {
+        allChunks.push({
+          lawName: chunk.law_name,
+          chapter: chunk.chapter ?? "",
+          articleNumber: chunk.article_number,
+          articleText: chunk.article_text,
+          tags: chunk.tags ?? [],
+          category: chunk.category,
+        });
+      }
     }
 
-    return { message: "Seeded successfully", count: chunks.length };
+    for (let i = 0; i < allChunks.length; i += 25) {
+      await db.insert(legalChunks).values(allChunks.slice(i, i + 25));
+    }
+
+    return { message: "Seeded successfully", count: allChunks.length };
   }),
 
   /**
@@ -228,4 +319,72 @@ export const legalRouter = createRouter({
       .from(legalChunks);
     return result[0]?.count ?? 0;
   }),
+
+  /**
+   * Get all articles for a specific law (for library page)
+   */
+  getByLaw: publicQuery
+    .input(z.object({ lawName: z.string() }))
+    .query(async ({ input }) => {
+      return getDb()
+        .select()
+        .from(legalChunks)
+        .where(eq(legalChunks.lawName, input.lawName))
+        .orderBy(legalChunks.articleNumber);
+    }),
+
+  /**
+   * List laws with metadata and article counts (for library page)
+   */
+  listLawsWithMeta: publicQuery.query(async () => {
+    const rows = await getDb()
+      .select({
+        lawName: legalChunks.lawName,
+        category: legalChunks.category,
+        id: legalChunks.id,
+      })
+      .from(legalChunks);
+
+    const grouped: Record<string, { category: string; count: number }> = {};
+    for (const row of rows) {
+      if (!grouped[row.lawName]) {
+        grouped[row.lawName] = { category: row.category, count: 0 };
+      }
+      grouped[row.lawName].count++;
+    }
+
+    return Object.entries(grouped).map(([lawName, { category, count }]) => ({
+      lawName,
+      category,
+      count,
+      ...(LAW_META[lawName] ?? { nameAr: lawName, description: "", icon: "book" }),
+    }));
+  }),
+
+  /**
+   * Search articles across all laws (full-text keyword search for library)
+   */
+  searchArticles: publicQuery
+    .input(z.object({
+      query: z.string().min(2).max(200),
+      category: z.string().optional(),
+      limit: z.number().min(1).max(50).default(20),
+    }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      let base = db.select().from(legalChunks);
+
+      const rows = await (input.category
+        ? base.where(eq(legalChunks.category, input.category)).limit(300)
+        : base.limit(500));
+
+      const q = input.query.toLowerCase();
+      return rows
+        .filter(r =>
+          r.articleText.toLowerCase().includes(q) ||
+          r.articleNumber.toLowerCase().includes(q) ||
+          (r.tags as string[]).some(t => t.includes(q))
+        )
+        .slice(0, input.limit);
+    }),
 });

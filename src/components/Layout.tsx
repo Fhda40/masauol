@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { Menu, X, Sparkles, LogOut, Shield, MessageCircle } from "lucide-react";
+import { Menu, X, Sparkles, LogOut, Shield, MessageCircle, ChevronUp } from "lucide-react";
 import { useAuth, GoogleLoginButton } from "@/providers/AuthProvider";
 import MasoulLogo from "@/components/MasoulLogo";
 
@@ -12,6 +12,7 @@ const navLinks = [
   { path: "/services", label: "الخدمات" },
   { path: "/ai-advisor", label: "المستشار الذكي" },
   { path: "/case-review", label: "مراجعة قضية" },
+  { path: "/legal-library", label: "مكتبة الأنظمة" },
   { path: "/about", label: "عن مسؤول" },
   { path: "/contact", label: "تواصل" },
 ];
@@ -218,6 +219,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <main className="pt-16">{children}</main>
 
+      {/* Scroll to Top */}
+      <AnimatePresence>
+        {scrolled && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-2xl flex items-center justify-center cursor-pointer"
+            style={{
+              background: "rgba(255,255,255,0.90)",
+              border: "1px solid rgba(201,168,76,0.25)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+              backdropFilter: "blur(12px)",
+            }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
+            title="العودة للأعلى"
+          >
+            <ChevronUp className="w-5 h-5" style={{ color: "#C9A84C" }} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* WhatsApp Floating Button */}
       <motion.a
         href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد الاستفسار عن خدمات مسؤول القانونية")}`}
@@ -291,6 +316,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
                 >
                   سياسة الخصوصية
+                </Link>
+                <Link
+                  to="/terms"
+                  className="block text-sm transition-colors duration-200 cursor-pointer"
+                  style={{ color: "var(--text-faint)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-gold)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                >
+                  الشروط والأحكام
+                </Link>
+                <Link
+                  to="/legal-library"
+                  className="block text-sm transition-colors duration-200 cursor-pointer"
+                  style={{ color: "var(--text-faint)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-gold)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                >
+                  مكتبة الأنظمة القانونية
                 </Link>
               </div>
             </div>
