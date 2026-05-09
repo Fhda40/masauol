@@ -21,12 +21,12 @@ const STATS = [
 ];
 
 const SERVICES = [
-  { icon: Shield,      color: "#4EA8DE", num: "01", title: "الجرائم الإلكترونية",   desc: "ابتزاز، احتيال، تشهير، اختراق — تحليل قانوني فوري بمواد نظامية محددة" },
-  { icon: Briefcase,   color: "#C9A84C", num: "02", title: "التنفيذ والديون",        desc: "إجراءات التنفيذ، حجز الأموال، منع السفر، شيكات بدون رصيد" },
-  { icon: Gavel,       color: "#17B26A", num: "03", title: "القضايا العمالية",       desc: "فصل تعسفي، مستحقات مالية، نزاعات عقود العمل، إصابات العمل" },
-  { icon: Scale,       color: "#9B59B6", num: "04", title: "الأحوال الشخصية",       desc: "طلاق، حضانة، نفقة، ميراث — تحليل مبني على نظام الأحوال الشخصية" },
+  { icon: Shield,      color: "#4EA8DE", num: "01", title: "الجرائم الإلكترونية",       desc: "ابتزاز، احتيال، تشهير، اختراق — تحليل قانوني فوري بمواد نظامية محددة" },
+  { icon: Briefcase,   color: "#C9A84C", num: "02", title: "التنفيذ والديون",            desc: "إجراءات التنفيذ، حجز الأموال، منع السفر، شيكات بدون رصيد" },
+  { icon: Gavel,       color: "#17B26A", num: "03", title: "القضايا العمالية",           desc: "فصل تعسفي، مستحقات مالية، نزاعات عقود العمل، إصابات العمل" },
+  { icon: Scale,       color: "#9B59B6", num: "04", title: "الأحوال الشخصية",           desc: "طلاق، حضانة، نفقة، ميراث — تحليل مبني على نظام الأحوال الشخصية" },
   { icon: Lock,        color: "#E74C3C", num: "05", title: "المخدرات والجرائم الجنائية", desc: "حيازة، اتجار، تعاطٍ، حقوق المتهم وإجراءات التقاضي" },
-  { icon: FileSearch,  color: "#F39C12", num: "06", title: "القضايا التجارية",      desc: "نزاعات الشركات، عقود تجارية، إفلاس، تأسيس شركات وحوكمة" },
+  { icon: FileSearch,  color: "#F39C12", num: "06", title: "القضايا التجارية",          desc: "نزاعات الشركات، عقود تجارية، إفلاس، تأسيس شركات وحوكمة" },
 ];
 
 const TESTIMONIALS = [
@@ -84,58 +84,142 @@ export default function Home() {
   const heroRef     = useRef<HTMLElement>(null!);
   const titleRef    = useRef<HTMLDivElement>(null!);
   const statsRef    = useRef<HTMLDivElement>(null!);
-  const servicesRef = useRef<HTMLDivElement>(null!);
   const featureRef  = useRef<HTMLDivElement>(null!);
   const ctaRef      = useRef<HTMLDivElement>(null!);
 
   const { scrollYProgress } = useScroll({ target: heroRef });
-  const heroY     = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
-  const heroOpac  = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+  const heroY    = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const heroOpac = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
 
-  /* GSAP scroll reveals */
   useEffect(() => {
     const ctx = gsap.context(() => {
-      /* Hero title stagger */
+
+      /* ── Hero entrance ── */
       gsap.from(".hero-word", {
         y: 80, opacity: 0, duration: 1, stagger: 0.12,
         ease: "power3.out", delay: 0.3,
       });
       gsap.from(".hero-sub", {
-        y: 30, opacity: 0, duration: 0.9,
-        ease: "power2.out", delay: 0.9,
+        y: 30, opacity: 0, duration: 0.9, ease: "power2.out", delay: 0.9,
       });
       gsap.from(".hero-cta", {
-        y: 20, opacity: 0, duration: 0.7,
-        ease: "power2.out", delay: 1.2, stagger: 0.1,
+        y: 20, opacity: 0, duration: 0.7, ease: "power2.out", delay: 1.2, stagger: 0.1,
       });
 
-      /* Stats section */
+      /* ── Section labels: clip-path wipe from left ── */
+      gsap.utils.toArray<Element>(".section-label").forEach((el) => {
+        gsap.from(el, {
+          clipPath: "inset(0 100% 0 0)",
+          opacity: 0,
+          duration: 0.85,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 88%", once: true },
+        });
+      });
+
+      /* ── Section headings: rise from below ── */
+      gsap.utils.toArray<Element>(".section-heading").forEach((el) => {
+        gsap.from(el, {
+          y: 55, opacity: 0, duration: 1,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 84%", once: true },
+        });
+      });
+
+      /* ── Section sub-text ── */
+      gsap.utils.toArray<Element>(".section-subtext").forEach((el) => {
+        gsap.from(el, {
+          y: 25, opacity: 0, duration: 0.8,
+          ease: "power2.out",
+          scrollTrigger: { trigger: el, start: "top 86%", once: true },
+        });
+      });
+
+      /* ── Divider lines: draw from center ── */
+      gsap.utils.toArray<Element>(".reveal-line").forEach((el) => {
+        gsap.from(el, {
+          scaleX: 0,
+          transformOrigin: "center center",
+          duration: 1.2,
+          ease: "power2.inOut",
+          scrollTrigger: { trigger: el, start: "top 90%", once: true },
+        });
+      });
+
+      /* ── Stats: stagger + slight scale ── */
       gsap.from(statsRef.current?.querySelectorAll(".stat-card") ?? [], {
-        y: 50, opacity: 0, duration: 0.8, stagger: 0.15,
-        ease: "power2.out",
+        y: 60, opacity: 0, scale: 0.93, duration: 0.9, stagger: 0.13,
+        ease: "power3.out",
         scrollTrigger: { trigger: statsRef.current, start: "top 80%" },
       });
 
-      /* Services cards */
+      /* ── Services: clip-path reveal from bottom ── */
+      gsap.set(".service-card", { opacity: 0, y: 50, clipPath: "inset(100% 0 0 0)" });
       ScrollTrigger.batch(".service-card", {
         onEnter: (batch) =>
-          gsap.to(batch, { opacity: 1, y: 0, stagger: 0.1, duration: 0.7, ease: "power2.out" }),
+          gsap.to(batch, {
+            opacity: 1, y: 0,
+            clipPath: "inset(0% 0 0 0)",
+            stagger: 0.1, duration: 0.72,
+            ease: "power3.out",
+          }),
         start: "top 88%",
       });
-      gsap.set(".service-card", { opacity: 0, y: 50 });
 
-      /* Feature list */
+      /* ── Feature items: slide from side ── */
       gsap.from(".feature-item", {
-        x: 40, opacity: 0, duration: 0.6, stagger: 0.1,
+        x: 45, opacity: 0, duration: 0.65, stagger: 0.09,
         ease: "power2.out",
-        scrollTrigger: { trigger: featureRef.current, start: "top 75%" },
+        scrollTrigger: { trigger: featureRef.current, start: "top 76%" },
       });
 
-      /* CTA section */
+      /* ── Case review box: horizontal clip ── */
+      gsap.from(".case-review-box", {
+        clipPath: "inset(0 0 0 100%)",
+        duration: 1.1,
+        ease: "power3.out",
+        scrollTrigger: { trigger: ".case-review-box", start: "top 83%" },
+      });
+
+      /* ── Case review mini cards: pop in ── */
+      gsap.from(".case-mini-card", {
+        scale: 0.85, opacity: 0, duration: 0.6, stagger: 0.1,
+        ease: "back.out(1.7)",
+        scrollTrigger: { trigger: ".case-review-box", start: "top 75%" },
+      });
+
+      /* ── Testimonials: stagger fade+rise ── */
+      gsap.set(".testimonial-card", { opacity: 0, y: 45 });
+      ScrollTrigger.batch(".testimonial-card", {
+        onEnter: (batch) =>
+          gsap.to(batch, {
+            opacity: 1, y: 0,
+            stagger: 0.15, duration: 0.85,
+            ease: "power3.out",
+          }),
+        start: "top 87%",
+      });
+
+      /* ── CTA: scale + fade ── */
       gsap.from(ctaRef.current, {
-        scale: 0.95, opacity: 0, duration: 1,
-        ease: "power2.out",
-        scrollTrigger: { trigger: ctaRef.current, start: "top 80%" },
+        scale: 0.93, opacity: 0, y: 35, duration: 1.1,
+        ease: "power3.out",
+        scrollTrigger: { trigger: ctaRef.current, start: "top 82%" },
+      });
+
+      /* ── Parallax background layers ── */
+      gsap.utils.toArray<Element>(".parallax-layer").forEach((el, i) => {
+        const dir = i % 2 === 0 ? -1 : 1;
+        gsap.to(el, {
+          yPercent: 18 * dir,
+          ease: "none",
+          scrollTrigger: {
+            trigger: (el as HTMLElement).closest("section") ?? el,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1.5,
+          },
+        });
       });
     });
     return () => ctx.revert();
@@ -146,16 +230,13 @@ export default function Home() {
 
       {/* ══ HERO ══════════════════════════════════════════════════════════ */}
       <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden">
-
-        {/* Background gradient layers */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0" style={{
+          <div className="parallax-layer absolute inset-0" style={{
             background: "radial-gradient(ellipse 80% 60% at 70% 50%, rgba(201,168,76,0.07) 0%, transparent 60%)",
           }} />
-          <div className="absolute inset-0" style={{
+          <div className="parallax-layer absolute inset-0" style={{
             background: "radial-gradient(ellipse 60% 80% at 20% 80%, rgba(30,58,138,0.12) 0%, transparent 55%)",
           }} />
-          {/* Grid lines */}
           <div className="absolute inset-0 opacity-[0.025]" style={{
             backgroundImage: "linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)",
             backgroundSize: "60px 60px",
@@ -165,17 +246,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full pt-24 pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
 
-            {/* Text content */}
             <motion.div style={{ y: heroY, opacity: heroOpac }} ref={titleRef} className="relative z-10 order-2 lg:order-1">
-
-              {/* Badge */}
               <div className="hero-word inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold tracking-widest uppercase"
                 style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", color: "#C9A84C" }}>
                 <Star className="w-3 h-3 fill-current" />
                 المستشار القانوني الذكي الأول في السعودية
               </div>
 
-              {/* Main heading */}
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6" style={{ fontFamily: "'EB Garamond', serif" }}>
                 <span className="hero-word block" style={{ color: "var(--text-primary)" }}>اعرف</span>
                 <span className="hero-word block" style={{
@@ -190,7 +267,6 @@ export default function Home() {
                 تحليل قانوني احترافي مبني على الأنظمة السعودية. اشرح قضيتك وسيحللها مسؤول بمواد قانونية محددة خلال ثوانٍ.
               </p>
 
-              {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-4 mb-12">
                 <Link to="/ai-advisor"
                   className="hero-cta group flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-semibold text-base transition-all duration-300 cursor-pointer"
@@ -231,7 +307,6 @@ export default function Home() {
                 </Link>
               </div>
 
-              {/* Trust chips */}
               <div className="hero-cta flex flex-wrap gap-3">
                 {["تحليل فوري", "أنظمة سعودية", "سرية تامة", "مجاناً"].map(chip => (
                   <span key={chip}
@@ -244,12 +319,10 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* 3D Scene */}
             <div className="order-1 lg:order-2 relative h-[360px] sm:h-[480px] lg:h-[600px]">
               <div className="absolute inset-0">
                 <HeroScene />
               </div>
-              {/* Floating badge */}
               <motion.div
                 animate={{ y: [-6, 6, -6] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -278,7 +351,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -289,16 +361,21 @@ export default function Home() {
         </motion.div>
       </section>
 
+      {/* ── Section separator ── */}
+      <div className="max-w-6xl mx-auto px-6 py-2">
+        <div className="reveal-line h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.25), transparent)" }} />
+      </div>
+
       {/* ══ STATS ═════════════════════════════════════════════════════════ */}
       <section ref={statsRef} className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0" style={{
+        <div className="parallax-layer absolute inset-0" style={{
           background: "linear-gradient(180deg, transparent 0%, rgba(201,168,76,0.03) 50%, transparent 100%)",
         }} />
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {STATS.map((s, i) => (
               <div key={i}
-                className="stat-card text-center p-8 rounded-3xl relative overflow-hidden cursor-default group"
+                className="stat-card text-center p-8 rounded-3xl relative overflow-hidden cursor-default"
                 style={{
                   background: "rgba(255,255,255,0.75)",
                   border: "1px solid rgba(201,168,76,0.12)",
@@ -332,31 +409,31 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Section separator ── */}
+      <div className="max-w-6xl mx-auto px-6 py-2">
+        <div className="reveal-line h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.25), transparent)" }} />
+      </div>
+
       {/* ══ SERVICES ══════════════════════════════════════════════════════ */}
       <section className="py-24 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}>
-              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
-                خدماتنا القانونية
-              </p>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-6" style={{ fontFamily: "'EB Garamond', serif" }}>
-                كل قضية لها <span style={{
-                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                }}>حل</span>
-              </h2>
-              <p className="text-lg max-w-2xl mx-auto" style={{ color: "var(--text-muted)" }}>
-                نغطي أبرز أنواع القضايا في المملكة بتحليل مبني على النصوص النظامية الرسمية
-              </p>
-            </motion.div>
+            <p className="section-label text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+              خدماتنا القانونية
+            </p>
+            <h2 className="section-heading text-4xl lg:text-5xl font-bold mb-6" style={{ fontFamily: "'EB Garamond', serif" }}>
+              كل قضية لها{" "}
+              <span style={{
+                background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              }}>حل</span>
+            </h2>
+            <p className="section-subtext text-lg max-w-2xl mx-auto" style={{ color: "var(--text-muted)" }}>
+              نغطي أبرز أنواع القضايا في المملكة بتحليل مبني على النصوص النظامية الرسمية
+            </p>
           </div>
 
-          <div ref={servicesRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {SERVICES.map((svc, i) => (
               <div key={i}
                 className="service-card group relative p-7 rounded-3xl cursor-pointer overflow-hidden"
@@ -379,19 +456,16 @@ export default function Home() {
                   (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
                   (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)";
                 }}>
-                {/* Number */}
                 <span className="absolute top-5 left-5 text-xs font-mono font-bold tracking-wider"
                   style={{ color: `${svc.color}50` }}>
                   {svc.num}
                 </span>
-                {/* Icon */}
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
                   style={{ background: `${svc.color}18`, border: `1px solid ${svc.color}30` }}>
                   <svc.icon className="w-6 h-6" style={{ color: svc.color }} />
                 </div>
                 <h3 className="text-lg font-bold mb-3" style={{ color: "var(--text-primary)" }}>{svc.title}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{svc.desc}</p>
-                {/* Arrow */}
                 <div className="mt-4 flex items-center gap-2 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ color: svc.color }}>
                   <span>اعرف أكثر</span>
@@ -424,26 +498,32 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Section separator ── */}
+      <div className="max-w-6xl mx-auto px-6 py-2">
+        <div className="reveal-line h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.25), transparent)" }} />
+      </div>
+
       {/* ══ AI ADVISOR HIGHLIGHT ══════════════════════════════════════════ */}
       <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0" style={{
+        <div className="parallax-layer absolute inset-0" style={{
           background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(30,58,138,0.08) 0%, transparent 70%)",
         }} />
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-            {/* Left: Feature list */}
             <div ref={featureRef}>
-              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+              <p className="section-label text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
                 المستشار القانوني الذكي
               </p>
-              <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight" style={{ fontFamily: "'EB Garamond', serif" }}>
-                تحليل قانوني <span style={{
+              <h2 className="section-heading text-4xl lg:text-5xl font-bold mb-6 leading-tight" style={{ fontFamily: "'EB Garamond', serif" }}>
+                تحليل قانوني{" "}
+                <span style={{
                   background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
                   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                }}>حقيقي</span><br />لا اجتهادات عامة
+                }}>حقيقي</span>
+                <br />لا اجتهادات عامة
               </h2>
-              <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-muted)" }}>
+              <p className="section-subtext text-base leading-relaxed mb-8" style={{ color: "var(--text-muted)" }}>
                 مسؤول لا يعطيك إجابات جاهزة — يحلل وقائع قضيتك تحديداً ويربطها بالمواد النظامية المناسبة.
               </p>
               <div className="space-y-4">
@@ -484,20 +564,14 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Right: Chat preview mockup */}
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="relative">
+            {/* Chat preview */}
+            <div className="relative">
               <div className="rounded-3xl overflow-hidden p-6"
                 style={{
                   background: "rgba(10,10,18,0.9)",
                   border: "1px solid rgba(201,168,76,0.15)",
                   boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.08)",
                 }}>
-                {/* Chat header */}
                 <div className="flex items-center gap-3 pb-4 mb-4"
                   style={{ borderBottom: "1px solid rgba(201,168,76,0.08)" }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -511,7 +585,6 @@ export default function Home() {
                   <div className="mr-auto w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 </div>
 
-                {/* Messages */}
                 {[
                   { role: "user",      text: "تعرضت لابتزاز إلكتروني ولدي الرسائل والصور كدليل" },
                   { role: "assistant", text: "وقائعك تندرج تحت المادة ٣ و٥ من نظام مكافحة الجرائم المعلوماتية. الابتزاز الإلكتروني عقوبته لا تقل عن سنة وغرامة مليون ريال. خطوتك الأولى: احتفظ بجميع الأدلة وأبلغ هيئة الأمن السيبراني فوراً.\n\nهل تريد خطة إجراءات تفصيلية؟" },
@@ -533,7 +606,6 @@ export default function Home() {
                   </motion.div>
                 ))}
 
-                {/* Typing */}
                 <div className="flex items-center gap-2 mt-2">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center"
                     style={{ background: "linear-gradient(135deg, #C9A84C, #A8893A)" }}>
@@ -553,7 +625,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Floating badge */}
               <motion.div
                 animate={{ rotate: [0, 3, -3, 0] }}
                 transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
@@ -565,20 +636,21 @@ export default function Home() {
                 }}>
                 ٣ مراحل تحليل
               </motion.div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
+      {/* ── Section separator ── */}
+      <div className="max-w-6xl mx-auto px-6 py-2">
+        <div className="reveal-line h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.25), transparent)" }} />
+      </div>
+
       {/* ══ CASE REVIEW HIGHLIGHT ════════════════════════════════════════ */}
       <section className="py-24">
         <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="relative rounded-3xl overflow-hidden p-12"
+          <div
+            className="case-review-box relative rounded-3xl overflow-hidden p-12"
             style={{
               background: "linear-gradient(135deg, rgba(30,58,138,0.15) 0%, rgba(201,168,76,0.06) 100%)",
               border: "1px solid rgba(201,168,76,0.15)",
@@ -588,17 +660,17 @@ export default function Home() {
             }} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center relative z-10">
               <div>
-                <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+                <p className="section-label text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
                   مراجعة القضايا والأحكام
                 </p>
-                <h2 className="text-3xl lg:text-4xl font-bold mb-4" style={{ fontFamily: "'EB Garamond', serif" }}>
+                <h2 className="section-heading text-3xl lg:text-4xl font-bold mb-4" style={{ fontFamily: "'EB Garamond', serif" }}>
                   عندك حكم قضائي؟<br />
                   <span style={{
                     background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
                     WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                   }}>نكتشف ثغراته</span>
                 </h2>
-                <p className="text-base leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+                <p className="section-subtext text-base leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
                   ارفع الحكم القضائي أو السند التنفيذي وسيحلل مسؤول أخطاءه الإجرائية وفرص الاستئناف.
                 </p>
                 <Link to="/case-review"
@@ -628,7 +700,7 @@ export default function Home() {
                   { label: "ثغرات التعليل", val: "كشف تلقائي" },
                   { label: "حجج مضادة", val: "مُصاغة جاهزة" },
                 ].map((item, i) => (
-                  <div key={i} className="p-5 rounded-2xl"
+                  <div key={i} className="case-mini-card p-5 rounded-2xl"
                     style={{
                       background: "rgba(255,255,255,0.72)",
                       border: "1px solid rgba(201,168,76,0.1)",
@@ -639,43 +711,39 @@ export default function Home() {
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
+      {/* ── Section separator ── */}
+      <div className="max-w-6xl mx-auto px-6 py-2">
+        <div className="reveal-line h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.25), transparent)" }} />
+      </div>
+
       {/* ══ TESTIMONIALS ═════════════════════════════════════════════════ */}
       <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{
+        <div className="parallax-layer absolute inset-0 pointer-events-none" style={{
           background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(201,168,76,0.04) 0%, transparent 70%)",
         }} />
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}>
-              <p className="text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
-                آراء العملاء
-              </p>
-              <h2 className="text-4xl lg:text-5xl font-bold" style={{ fontFamily: "'EB Garamond', serif" }}>
-                ماذا قالوا عن <span style={{
-                  background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                }}>مسؤول</span>
-              </h2>
-            </motion.div>
+            <p className="section-label text-xs font-bold tracking-[0.3em] uppercase mb-4" style={{ color: "var(--accent-gold)" }}>
+              آراء العملاء
+            </p>
+            <h2 className="section-heading text-4xl lg:text-5xl font-bold" style={{ fontFamily: "'EB Garamond', serif" }}>
+              ماذا قالوا عن{" "}
+              <span style={{
+                background: "linear-gradient(135deg, #C9A84C, #F0D78A)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              }}>مسؤول</span>
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t, i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.12 }}
-                className="p-7 rounded-3xl relative"
+                className="testimonial-card p-7 rounded-3xl relative"
                 style={{
                   background: "rgba(255,255,255,0.78)",
                   border: "1px solid rgba(201,168,76,0.10)",
@@ -695,11 +763,9 @@ export default function Home() {
                 }}
               >
                 <Quote className="w-8 h-8 mb-4" style={{ color: "rgba(201,168,76,0.35)" }} />
-
                 <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
                   {t.text}
                 </p>
-
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t.name}</p>
@@ -710,14 +776,12 @@ export default function Home() {
                     {t.tag}
                   </span>
                 </div>
-
-                {/* Stars */}
                 <div className="flex gap-1 mt-4">
                   {Array.from({ length: t.rating }).map((_, j) => (
                     <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: "#C9A84C" }} />
                   ))}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -734,7 +798,6 @@ export default function Home() {
               backdropFilter: "blur(24px) saturate(160%)",
               boxShadow: "0 16px 60px rgba(201,168,76,0.10), 0 4px 16px rgba(0,0,0,0.05)",
             }}>
-            {/* Gold glow top */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px"
                 style={{ background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.45), transparent)" }} />

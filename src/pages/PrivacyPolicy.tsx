@@ -176,7 +176,7 @@ export default function PrivacyPolicy() {
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm" style={{ color: "var(--text-muted)" }}>
                 <Mail className="w-4 h-4" style={{ color: "#C9A84C" }} />
-                <span>privacy@masoul-law.sa</span>
+                <span>law2030m@gmail.com</span>
               </div>
               <div className="flex items-center gap-3 text-sm" style={{ color: "var(--text-muted)" }}>
                 <Phone className="w-4 h-4" style={{ color: "#C9A84C" }} />

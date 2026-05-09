@@ -298,8 +298,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div>
               <h4 className="text-xs font-bold uppercase mb-4 tracking-widest" style={{ color: "var(--accent-gold)" }}>التواصل</h4>
               <div className="space-y-3 text-sm" style={{ color: "var(--text-faint)" }}>
-                <p>الرياض، المملكة العربية السعودية</p>
-                <p>info@masoul-law.sa</p>
+                <p>الرياض - حي السليمانية - طريق صلاح الدين الأيوبي</p>
+                <p>law2030m@gmail.com</p>
+                <p>+966 550 341 728 | +966 504 244 498</p>
                 <p>السبت — الخميس: ٩ ص — ٦ م</p>
               </div>
               {/* Social Links */}

@@ -264,8 +264,9 @@ export default function Contact() {
                 <h3 className="font-bold" style={{ color: "var(--text-primary)" }}>معلومات التواصل</h3>
                 {[
                   { icon: Phone,  label: "الهاتف",     val: "+966 550 341 728" },
-                  { icon: Mail,   label: "البريد",     val: "info@masoul-law.sa" },
-                  { icon: MapPin, label: "الموقع",     val: "الرياض، المملكة العربية السعودية" },
+                  { icon: Phone,  label: "الهاتف ٢",   val: "+966 504 244 498" },
+                  { icon: Mail,   label: "البريد",     val: "law2030m@gmail.com" },
+                  { icon: MapPin, label: "الموقع",     val: "الرياض - حي السليمانية - طريق صلاح الدين الأيوبي" },
                   { icon: Clock,  label: "أوقات العمل", val: "السبت — الخميس: ٩ص — ٦م" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-3">

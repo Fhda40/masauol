@@ -1,283 +1,402 @@
-import { useRef, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, MeshDistortMaterial, Torus } from "@react-three/drei";
-import * as THREE from "three";
+import { useRef, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Scale, FileText, Shield, Brain, CheckCircle } from "lucide-react";
 
-/* ── Lighting ── */
-function Lights() {
+/* ── Mouse-tracking tilt ── */
+function useMouseTilt(intensity = 7) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      setTilt({
+        x: -((e.clientY - cy) / rect.height) * intensity,
+        y: ((e.clientX - cx) / rect.width) * intensity,
+      });
+    };
+    const reset = () => setTilt({ x: 0, y: 0 });
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseleave", reset);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseleave", reset);
+    };
+  }, [intensity]);
+
+  return { ref, tilt };
+}
+
+/* ── Typing dots ── */
+function TypingDots() {
   return (
-    <>
-      <ambientLight intensity={0.7} color="#FFF8E8" />
-      {/* Primary gold warm key light */}
-      <directionalLight position={[5, 6, 4]} color="#DFC070" intensity={5} />
-      {/* Navy fill from bottom-left for depth */}
-      <pointLight position={[-5, -3, -4]} color="#1E3A8A" intensity={6} distance={18} />
-      {/* Soft frontal rim */}
-      <pointLight position={[0, 1, 7]} color="#FFFFFF" intensity={2} distance={14} />
-      {/* Gold under-glow */}
-      <pointLight position={[0, -4, 2]} color="#C9A84C" intensity={3} distance={12} />
-    </>
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          style={{ width: 5, height: 5, borderRadius: "50%", background: "#C9A84C" }}
+          animate={{ y: [0, -5, 0] }}
+          transition={{ duration: 0.75, repeat: Infinity, delay: i * 0.18 }}
+        />
+      ))}
+    </div>
   );
 }
 
-/* ── Central glass orb with distortion ── */
-function GlassOrb() {
-  const ref = useRef<THREE.Mesh>(null!);
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    ref.current.rotation.y = t * 0.07;
-    ref.current.rotation.x = Math.sin(t * 0.05) * 0.06;
-  });
-  return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[1.55, 64, 64]} />
-      <MeshDistortMaterial
-        color="#F5F0E8"
-        roughness={0.08}
-        metalness={0.04}
-        distort={0.08}
-        speed={1.5}
-        transparent
-        opacity={0.55}
-        envMapIntensity={0.5}
-      />
-    </mesh>
-  );
-}
-
-/* ── Inner gold scales of justice ── */
-function GoldenScales() {
-  const groupRef  = useRef<THREE.Group>(null!);
-  const leftPan   = useRef<THREE.Group>(null!);
-  const rightPan  = useRef<THREE.Group>(null!);
-  const beamRef   = useRef<THREE.Mesh>(null!);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    /* Gentle y-rotation of the whole scales */
-    groupRef.current.rotation.y = Math.sin(t * 0.18) * 0.55;
-    /* Pan oscillation */
-    const sway = Math.sin(t * 0.45) * 0.18;
-    leftPan.current.position.y  = -sway;
-    rightPan.current.position.y =  sway;
-    /* Very subtle beam tilt */
-    beamRef.current.rotation.z  = Math.sin(t * 0.45) * 0.08;
-  });
-
-  return (
-    <group ref={groupRef} position={[0, -0.08, 0.2]}>
-      {/* Beam */}
-      <mesh ref={beamRef} position={[0, 0.4, 0]}>
-        <boxGeometry args={[2.0, 0.06, 0.06]} />
-        <meshStandardMaterial color="#F0D78A" metalness={0.97} roughness={0.04} />
-      </mesh>
-
-      {/* Center ornament + pillar */}
-      <mesh position={[0, 0.56, 0]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshStandardMaterial color="#C9A84C" metalness={0.95} roughness={0.05} />
-      </mesh>
-      <mesh position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.04, 0.07, 0.9, 16]} />
-        <meshStandardMaterial color="#A8893A" metalness={0.92} roughness={0.08} />
-      </mesh>
-      {/* Base */}
-      <mesh position={[0, -0.38, 0]}>
-        <cylinderGeometry args={[0.22, 0.28, 0.06, 32]} />
-        <meshStandardMaterial color="#C9A84C" metalness={0.9} roughness={0.1} />
-      </mesh>
-
-      {/* Left pan & chain */}
-      <group ref={leftPan} position={[-1.0, 0.28, 0]}>
-        <mesh position={[0, -0.35, 0]}>
-          <cylinderGeometry args={[0.30, 0.30, 0.055, 32]} />
-          <meshStandardMaterial color="#DFC070" metalness={0.95} roughness={0.06}
-            emissive="#C9A84C" emissiveIntensity={0.15} />
-        </mesh>
-        {/* Simple chain links */}
-        {[-0.08, -0.16, -0.24].map((y, i) => (
-          <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.035, 0.008, 8, 16]} />
-            <meshStandardMaterial color="#C9A84C" metalness={1} roughness={0.03} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* Right pan & chain */}
-      <group ref={rightPan} position={[1.0, 0.28, 0]}>
-        <mesh position={[0, -0.35, 0]}>
-          <cylinderGeometry args={[0.30, 0.30, 0.055, 32]} />
-          <meshStandardMaterial color="#DFC070" metalness={0.95} roughness={0.06}
-            emissive="#C9A84C" emissiveIntensity={0.15} />
-        </mesh>
-        {[-0.08, -0.16, -0.24].map((y, i) => (
-          <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.035, 0.008, 8, 16]} />
-            <meshStandardMaterial color="#C9A84C" metalness={1} roughness={0.03} />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  );
-}
-
-/* ── Gold orbital ring ── */
-function OrbitalRing() {
-  const ref = useRef<THREE.Mesh>(null!);
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    ref.current.rotation.x = t * 0.12;
-    ref.current.rotation.y = t * 0.08;
-  });
-  return (
-    <mesh ref={ref} rotation={[Math.PI / 6, 0, Math.PI / 4]}>
-      <torusGeometry args={[1.95, 0.025, 16, 120]} />
-      <meshStandardMaterial
-        color="#F0D78A"
-        metalness={1}
-        roughness={0.03}
-        emissive="#C9A84C"
-        emissiveIntensity={0.35}
-        transparent
-        opacity={0.75}
-      />
-    </mesh>
-  );
-}
-
-/* ── Second thinner ring ── */
-function OrbitalRing2() {
-  const ref = useRef<THREE.Mesh>(null!);
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    ref.current.rotation.x = -t * 0.09;
-    ref.current.rotation.z = t * 0.06;
-  });
-  return (
-    <mesh ref={ref} rotation={[-Math.PI / 5, Math.PI / 5, 0]}>
-      <torusGeometry args={[2.2, 0.015, 12, 100]} />
-      <meshStandardMaterial
-        color="#A8893A"
-        metalness={0.9}
-        roughness={0.1}
-        transparent
-        opacity={0.45}
-      />
-    </mesh>
-  );
-}
-
-/* ── Orbiting gold particles ── */
-function GoldParticles({ count = 140 }: { count?: number }) {
-  const pts = useRef<THREE.Points>(null!);
-
-  const { pos, speed } = useMemo(() => {
-    const pos   = new Float32Array(count * 3);
-    const speed = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      const phi   = Math.acos(2 * Math.random() - 1);
-      const theta = Math.random() * Math.PI * 2;
-      const r     = 2.2 + Math.random() * 1.8;
-      pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      pos[i * 3 + 2] = r * Math.cos(phi);
-      speed[i]       = 0.2 + Math.random() * 0.5;
-    }
-    return { pos, speed };
-  }, [count]);
-
-  useFrame((state) => {
-    const t   = state.clock.getElapsedTime();
-    const arr = pts.current.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < count; i++) {
-      const s = speed[i];
-      const phi   = Math.acos(((i / count) * 2 - 1) * 0.98);
-      const theta = (i / count) * Math.PI * 2 + t * s * 0.14;
-      const r     = 2.4 + Math.sin(t * s * 0.35 + i * 0.8) * 0.5;
-      arr[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      arr[i * 3 + 2] = r * Math.cos(phi);
-    }
-    pts.current.geometry.attributes.position.needsUpdate = true;
-  });
-
-  return (
-    <points ref={pts}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        color="#C9A84C"
-        size={0.035}
-        transparent
-        opacity={0.75}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
-/* ── Small satellite glass orbs ── */
-function SatelliteOrb({ radius, speed, phase, color }: {
-  radius: number; speed: number; phase: number; color: string;
+/* ── Stat pill ── */
+function StatPill({
+  text, color, bg, border, delay, amp, style,
+}: {
+  text: string; color: string; bg: string; border: string;
+  delay: number; amp: number; style?: React.CSSProperties;
 }) {
-  const ref = useRef<THREE.Mesh>(null!);
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    ref.current.position.x = Math.cos(t * speed + phase) * radius;
-    ref.current.position.z = Math.sin(t * speed + phase) * radius;
-    ref.current.position.y = Math.sin(t * speed * 0.6 + phase) * (radius * 0.35);
-  });
   return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[0.12, 20, 20]} />
-      <meshStandardMaterial
-        color={color}
-        metalness={0.05}
-        roughness={0.08}
-        transparent
-        opacity={0.65}
-        emissive={color}
-        emissiveIntensity={0.15}
-      />
-    </mesh>
-  );
-}
-
-/* ── Scene content ── */
-function SceneContent() {
-  return (
-    <>
-      <Lights />
-
-      {/* Main floating group */}
-      <Float speed={1.0} rotationIntensity={0.15} floatIntensity={0.4}>
-        <GlassOrb />
-        <GoldenScales />
-        <OrbitalRing />
-        <OrbitalRing2 />
-      </Float>
-
-      <GoldParticles count={150} />
-
-      <SatelliteOrb radius={2.8} speed={0.4}  phase={0}              color="#F5F0E8" />
-      <SatelliteOrb radius={3.2} speed={0.28} phase={Math.PI * 0.7}  color="#C9A84C" />
-      <SatelliteOrb radius={2.6} speed={0.55} phase={Math.PI * 1.4}  color="#4EA8DE" />
-      <SatelliteOrb radius={3.5} speed={0.22} phase={Math.PI * 0.35} color="#F0D78A" />
-    </>
-  );
-}
-
-/* ── Exported canvas ── */
-export default function HeroScene() {
-  return (
-    <Canvas
-      camera={{ position: [0, 0.4, 6.5], fov: 46 }}
-      gl={{ antialias: true, alpha: true }}
-      style={{ background: "transparent" }}
-      dpr={[1, 1.5]}
+    <motion.div
+      animate={{ y: [-amp, amp, -amp] }}
+      transition={{ duration: 3.5 + delay, repeat: Infinity, ease: "easeInOut", delay }}
+      style={{
+        padding: "6px 14px", borderRadius: 20,
+        background: bg, border: `1px solid ${border}`,
+        color, fontSize: 11, fontWeight: 700,
+        whiteSpace: "nowrap", boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+        ...style,
+      }}
     >
-      <SceneContent />
-    </Canvas>
+      {text}
+    </motion.div>
+  );
+}
+
+/* ── Main export ── */
+export default function HeroScene() {
+  const { ref, tilt } = useMouseTilt(6);
+  const [step, setStep] = useState(0);
+
+  /* Animate chat sequence once on mount */
+  useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 700);
+    const t2 = setTimeout(() => setStep(2), 1900);
+    const t3 = setTimeout(() => setStep(3), 3500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="w-full h-full flex items-center justify-center"
+      style={{ perspective: "1200px" }}
+    >
+      <motion.div
+        animate={{ rotateX: tilt.x, rotateY: tilt.y }}
+        transition={{ type: "spring", stiffness: 120, damping: 20 }}
+        style={{ transformStyle: "preserve-3d", width: "100%", maxWidth: 360 }}
+        className="relative"
+      >
+
+        {/* ── Main chat card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 44, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            background: "rgba(7,7,14,0.94)",
+            border: "1px solid rgba(201,168,76,0.18)",
+            borderRadius: 24,
+            overflow: "hidden",
+            boxShadow:
+              "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.07), 0 0 100px rgba(201,168,76,0.05)",
+          }}
+        >
+
+          {/* Title bar */}
+          <div
+            style={{
+              padding: "12px 16px",
+              borderBottom: "1px solid rgba(201,168,76,0.08)",
+              background: "rgba(201,168,76,0.025)",
+              display: "flex", alignItems: "center", gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", gap: 5 }}>
+              {(["#FF5F57", "#FEBC2E", "#28C840"] as const).map((c) => (
+                <div key={c} style={{ width: 9, height: 9, borderRadius: "50%", background: c, opacity: 0.8 }} />
+              ))}
+            </div>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: 10.5, color: "#4A4540", letterSpacing: "0.04em" }}>
+                مسؤول • المستشار القانوني الذكي
+              </span>
+            </div>
+            <motion.div
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity }}
+              style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }}
+            />
+          </div>
+
+          {/* Chat body */}
+          <div
+            style={{
+              padding: "16px 14px", minHeight: 270,
+              display: "flex", flexDirection: "column", gap: 10,
+              direction: "rtl",
+            }}
+          >
+            {/* User message */}
+            <AnimatePresence>
+              {step >= 1 && (
+                <motion.div
+                  key="user"
+                  initial={{ opacity: 0, x: -20, scale: 0.94 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: 0.4 }}
+                  style={{ alignSelf: "flex-end", maxWidth: "82%" }}
+                >
+                  <div
+                    style={{
+                      background: "rgba(201,168,76,0.09)",
+                      border: "1px solid rgba(201,168,76,0.16)",
+                      borderRadius: "14px 14px 4px 14px",
+                      padding: "8px 13px",
+                      fontSize: 12, color: "#E8DFC8", lineHeight: 1.65, textAlign: "right",
+                    }}
+                  >
+                    تعرضت لابتزاز إلكتروني ولديّ الأدلة كاملة
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Typing indicator */}
+            <AnimatePresence>
+              {step === 2 && (
+                <motion.div
+                  key="typing"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  style={{ alignSelf: "flex-start", display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <div
+                    style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: "linear-gradient(135deg,#C9A84C,#A8893A)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Scale style={{ width: 13, height: 13, color: "#000" }} />
+                  </div>
+                  <div
+                    style={{
+                      background: "#181818",
+                      border: "1px solid rgba(201,168,76,0.10)",
+                      borderRadius: 14, padding: "10px 14px",
+                    }}
+                  >
+                    <TypingDots />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* AI response */}
+            <AnimatePresence>
+              {step >= 3 && (
+                <motion.div
+                  key="ai"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ alignSelf: "flex-start", maxWidth: "95%", display: "flex", gap: 8 }}
+                >
+                  <div
+                    style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: "linear-gradient(135deg,#C9A84C,#A8893A)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, marginTop: 2,
+                    }}
+                  >
+                    <Scale style={{ width: 13, height: 13, color: "#000" }} />
+                  </div>
+
+                  <div>
+                    {/* Article reference badge */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.15 }}
+                      style={{
+                        marginBottom: 6,
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "3px 10px", borderRadius: 20,
+                        background: "rgba(201,168,76,0.10)",
+                        border: "1px solid rgba(201,168,76,0.20)",
+                      }}
+                    >
+                      <FileText style={{ width: 9, height: 9, color: "#C9A84C" }} />
+                      <span style={{ fontSize: 9.5, color: "#C9A84C", fontWeight: 700 }}>
+                        المادة ٣ — نظام مكافحة الجرائم المعلوماتية
+                      </span>
+                    </motion.div>
+
+                    {/* Response bubble */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.25 }}
+                      style={{
+                        background: "#141414",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        borderRadius: "4px 14px 14px 14px",
+                        padding: "9px 12px",
+                        fontSize: 11.5, color: "#CEC4B0",
+                        lineHeight: 1.75, textAlign: "right",
+                      }}
+                    >
+                      ابتزاز إلكتروني — عقوبته{" "}
+                      <span style={{ color: "#F0D78A", fontWeight: 700 }}>
+                        سجن سنة وغرامة مليون ريال
+                      </span>
+                      . أبلغ هيئة الأمن السيبراني فوراً مع كامل الأدلة.
+                    </motion.div>
+
+                    {/* Classification tags */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      style={{ marginTop: 6, display: "flex", gap: 5, flexWrap: "wrap" }}
+                    >
+                      {[
+                        { label: "خطر عالٍ",    color: "#ef4444", bg: "rgba(220,38,38,0.09)",  border: "rgba(220,38,38,0.18)" },
+                        { label: "٣ مواد",       color: "#16a34a", bg: "rgba(22,163,74,0.07)",  border: "rgba(22,163,74,0.15)" },
+                        { label: "جريمة إلكترونية", color: "#C9A84C", bg: "rgba(201,168,76,0.08)", border: "rgba(201,168,76,0.15)" },
+                      ].map((t) => (
+                        <span
+                          key={t.label}
+                          style={{
+                            fontSize: 9, padding: "2px 8px", borderRadius: 20,
+                            background: t.bg, color: t.color, border: `1px solid ${t.border}`,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {t.label}
+                        </span>
+                      ))}
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Input bar */}
+          <div
+            style={{
+              padding: "10px 14px",
+              borderTop: "1px solid rgba(201,168,76,0.07)",
+              background: "rgba(0,0,0,0.25)",
+              display: "flex", gap: 8, alignItems: "center", direction: "rtl",
+            }}
+          >
+            <div
+              style={{
+                flex: 1, height: 34, borderRadius: 17,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(201,168,76,0.09)",
+                display: "flex", alignItems: "center", padding: "0 12px",
+              }}
+            >
+              <span style={{ fontSize: 10, color: "#3A3530" }}>صف قضيتك...</span>
+            </div>
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                width: 34, height: 34, borderRadius: "50%",
+                background: "linear-gradient(135deg,#C9A84C,#A8893A)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(201,168,76,0.35)",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" />
+              </svg>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* ── Floating stat pills ── */}
+        <StatPill
+          text="٣ مراحل تحليل ذكي"
+          color="#000"
+          bg="linear-gradient(135deg,#C9A84C,#A8893A)"
+          border="transparent"
+          delay={0.3} amp={6}
+          style={{ position: "absolute", top: -18, right: -8, boxShadow: "0 10px 28px rgba(201,168,76,0.50)" }}
+        />
+
+        <StatPill
+          text="٨ أنظمة سعودية ✓"
+          color="#17B26A"
+          bg="rgba(7,7,14,0.92)"
+          border="rgba(23,178,106,0.25)"
+          delay={1} amp={5}
+          style={{ position: "absolute", bottom: -16, left: -8 }}
+        />
+
+        {/* ── Side feature cards ── */}
+        <motion.div
+          animate={{ x: [-4, 4, -4], y: [3, -3, 3] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
+          style={{
+            position: "absolute", top: "25%", left: -100,
+            padding: "9px 12px", borderRadius: 14,
+            background: "rgba(7,7,14,0.88)",
+            border: "1px solid rgba(201,168,76,0.14)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <Shield style={{ width: 11, height: 11, color: "#C9A84C" }} />
+            <span style={{ fontSize: 10, color: "#C9A84C", fontWeight: 700 }}>سرية تامة</span>
+          </div>
+          <div style={{ fontSize: 9, color: "#4A4540" }}>بياناتك محمية</div>
+        </motion.div>
+
+        <motion.div
+          animate={{ x: [4, -4, 4], y: [-3, 3, -3] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          style={{
+            position: "absolute", top: "55%", right: -92,
+            padding: "9px 12px", borderRadius: 14,
+            background: "rgba(7,7,14,0.88)",
+            border: "1px solid rgba(23,178,106,0.15)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <CheckCircle style={{ width: 11, height: 11, color: "#17B26A" }} />
+            <span style={{ fontSize: 10, color: "#17B26A", fontWeight: 700 }}>تحليل فوري</span>
+          </div>
+          <div style={{ fontSize: 9, color: "#4A4540" }}>ثوانٍ لا ساعات</div>
+        </motion.div>
+
+        {/* ── Background glow ── */}
+        <div
+          style={{
+            position: "absolute", inset: -40, borderRadius: 40,
+            background: "radial-gradient(ellipse at center, rgba(201,168,76,0.06) 0%, transparent 70%)",
+            zIndex: -1, pointerEvents: "none",
+          }}
+        />
+      </motion.div>
+    </div>
   );
 }
