@@ -243,6 +243,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
+      {/* AI Advisor Floating Button */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 1.5, duration: 0.5, type: "spring" }}
+        className="fixed bottom-24 left-6 z-50"
+      >
+        {/* Pulse ring */}
+        <span className="absolute inset-0 rounded-2xl animate-ping opacity-40" style={{ background: "linear-gradient(135deg, #C9A84C, #F0D080)" }} />
+        <Link
+          to="/ai-advisor"
+          className="relative flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg cursor-pointer"
+          style={{
+            background: "linear-gradient(135deg, #C9A84C, #a07820)",
+            color: "#fff",
+            boxShadow: "0 8px 32px rgba(201,168,76,0.55)",
+          }}
+          title="المستشار الذكي"
+        >
+          <Sparkles className="w-5 h-5" />
+          <span className="text-sm font-semibold hidden sm:block">المستشار الذكي</span>
+        </Link>
+      </motion.div>
+
       {/* WhatsApp Floating Button */}
       <motion.a
         href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحباً، أريد الاستفسار عن خدمات مسؤول القانونية")}`}
@@ -398,8 +422,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
+          {/* Legal disclaimer */}
+          <div className="mt-12 p-4 rounded-2xl"
+            style={{ background: "rgba(201,168,76,0.05)", border: "1px solid rgba(201,168,76,0.12)" }}>
+            <p className="text-xs leading-relaxed text-center" style={{ color: "var(--text-faint)" }}>
+              ⚖️ المخرجات الصادرة من المستشار الذكي هي تحليل أولي ولا تُعد رأياً قانونياً نهائياً أو بديلاً عن استشارة محامٍ مرخص.
+            </p>
+          </div>
+
           <div
-            className="mt-14 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4"
+            className="mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4"
             style={{ borderTop: "1px solid var(--border-subtle)" }}
           >
             <p className="text-xs" style={{ color: "var(--text-faint)" }}>

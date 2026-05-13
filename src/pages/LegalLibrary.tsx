@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import SEO from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Search, ChevronDown, ChevronUp, Scale,
@@ -145,6 +146,11 @@ export default function LegalLibrary() {
 
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="مكتبة الأنظمة السعودية"
+        description="استعرض الأنظمة السعودية المتاحة في مسؤول: نظام العمل، التنفيذ، الأحوال الشخصية، الجرائم المعلوماتية، الشركات والمزيد."
+        path="/legal-library"
+      />
 
       {/* Header */}
       <section className="relative py-20 overflow-hidden">

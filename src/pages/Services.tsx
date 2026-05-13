@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import SEO from "@/components/SEO";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -114,6 +115,11 @@ export default function Services() {
 
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="الخدمات القانونية"
+        description="خدمات قانونية متكاملة: تحليل القضايا، مراجعة الأحكام، الاستشارات العمالية والتجارية والأسرية وفق الأنظمة السعودية."
+        path="/services"
+      />
 
       {/* ── Header ── */}
       <section ref={headerRef} className="relative py-24 overflow-hidden">

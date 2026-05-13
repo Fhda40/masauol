@@ -3,6 +3,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { getDb } from "../queries/connection";
 import { legalChunks } from "@db/schema";
 import { eq, and, like, or } from "drizzle-orm";
+import { vectorSearch, isVectorSearchReady } from "../lib/vector-search";
 
 const LAW_META: Record<string, { nameAr: string; category: string; description: string; icon: string }> = {
   "نظام مكافحة الجرائم المعلوماتية": {
@@ -371,9 +372,25 @@ export const legalRouter = createRouter({
       limit: z.number().min(1).max(50).default(20),
     }))
     .query(async ({ input }) => {
+      // Vector search path
+      if (isVectorSearchReady()) {
+        const results = await vectorSearch(input.query, input.limit, input.category ?? null);
+        return results.map((r) => ({
+          id: 0,
+          lawName: r.law_name,
+          chapter: r.chapter,
+          articleNumber: r.article_number,
+          articleText: r.content,
+          tags: [] as string[],
+          category: r.domain,
+          createdAt: new Date(),
+          _similarity: r.similarity,
+        }));
+      }
+
+      // Keyword fallback
       const db = getDb();
       let base = db.select().from(legalChunks);
-
       const rows = await (input.category
         ? base.where(eq(legalChunks.category, input.category)).limit(300)
         : base.limit(500));

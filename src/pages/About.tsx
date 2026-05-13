@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router";
+import SEO from "@/components/SEO";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -68,6 +69,11 @@ export default function About() {
 
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="عن مسؤول — الذكاء الاصطناعي والخبرة القانونية"
+        description="مسؤول منصة سعودية تجمع بين الذكاء الاصطناعي والخبرة القانونية لتقديم تحليل قانوني دقيق مبني على الأنظمة الرسمية."
+        path="/about"
+      />
 
       {/* ── Hero ── */}
       <section className="relative py-28 overflow-hidden">

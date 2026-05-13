@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SEO from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router";
 import {
@@ -206,6 +207,11 @@ export default function CaseReview() {
 
   return (
     <div className="pb-20 overflow-hidden">
+      <SEO
+        title="مراجعة قضية قانونية — مسؤول"
+        description="أرسل تفاصيل قضيتك لمراجعة قانونية متخصصة من فريق مسؤول. نحلل الأحكام والوقائع ونحدد الخيارات المتاحة."
+        path="/case-review"
+      />
 
       {/* ═══ HERO ═══ */}
       <section className="relative pt-28 pb-12 overflow-hidden">

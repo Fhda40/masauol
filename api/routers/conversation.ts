@@ -76,9 +76,13 @@ export const conversationRouter = createRouter({
       const token = ctx.req.headers.get("x-session-token");
       const user = await getUserFromToken(token);
 
+      // Accounts exempt from the single-consultation limit
+      const UNLIMITED_EMAILS = ["ifhd.saiari@gmail.com", "mb5out@gmail.com", "law2030m@gmail.com"];
+
       if (user) {
-        // Logged-in: check by userId
-        if (user.consultationUsed) {
+        const isUnlimited = UNLIMITED_EMAILS.includes(user.email ?? "");
+
+        if (!isUnlimited && user.consultationUsed) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "لقد استخدمت استشارتك المجانية. للحصول على استشارة كاملة، تواصل مع فريق مسؤول للمحاماة.",
@@ -94,11 +98,12 @@ export const conversationRouter = createRouter({
           })
           .$returningId();
 
-        // Mark consultation as used
-        await getDb()
-          .update(users)
-          .set({ consultationUsed: true })
-          .where(eq(users.id, user.id));
+        if (!isUnlimited) {
+          await getDb()
+            .update(users)
+            .set({ consultationUsed: true })
+            .where(eq(users.id, user.id));
+        }
 
         const [conv] = await getDb()
           .select()

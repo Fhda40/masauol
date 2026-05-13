@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { FileText, AlertTriangle, Scale, Shield, Mail } from "lucide-react";
+import SEO from "@/components/SEO";
 
 const SECTIONS = [
   {
@@ -47,6 +48,11 @@ const SECTIONS = [
 export default function TermsOfService() {
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="الشروط والأحكام — مسؤول"
+        description="اطلع على شروط وأحكام استخدام منصة مسؤول. تحكم هذه الشروط علاقتك بالمنصة وخدماتها."
+        path="/terms"
+      />
 
       {/* Header */}
       <section className="relative py-24 overflow-hidden">

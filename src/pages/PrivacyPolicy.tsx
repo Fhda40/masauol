@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Shield, Lock, Eye, Database, Mail, Phone } from "lucide-react";
+import SEO from "@/components/SEO";
 
 const SECTIONS = [
   {
@@ -47,6 +48,11 @@ const SECTIONS = [
 export default function PrivacyPolicy() {
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="سياسة الخصوصية — مسؤول"
+        description="اطلع على سياسة خصوصية منصة مسؤول وكيفية جمع بياناتك وحمايتها واستخدامها."
+        path="/privacy"
+      />
 
       {/* Header */}
       <section className="relative py-24 overflow-hidden">

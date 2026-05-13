@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SEO from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import { trpc } from "@/providers/trpc";
 import {
@@ -56,6 +57,11 @@ export default function Contact() {
 
   return (
     <div dir="rtl" style={{ background: "var(--bg-primary)", color: "var(--text-primary)", minHeight: "100vh" }}>
+      <SEO
+        title="تواصل معنا"
+        description="تواصل مع فريق مسؤول للمحاماة عبر الواتساب أو البريد الإلكتروني للحصول على استشارة قانونية متخصصة."
+        path="/contact"
+      />
 
       {/* ── Header ── */}
       <section className="relative py-24 overflow-hidden">

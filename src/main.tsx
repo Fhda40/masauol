@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
+import { HelmetProvider } from 'react-helmet-async'
 import { TRPCProvider } from '@/providers/trpc'
 import { AuthProvider } from '@/providers/AuthProvider'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -7,13 +8,15 @@ import './index.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
-  <BrowserRouter>
-    <TRPCProvider>
-      <AuthProvider>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </AuthProvider>
-    </TRPCProvider>
-  </BrowserRouter>,
+  <HelmetProvider>
+    <BrowserRouter>
+      <TRPCProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AuthProvider>
+      </TRPCProvider>
+    </BrowserRouter>
+  </HelmetProvider>,
 )
