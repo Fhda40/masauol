@@ -108,6 +108,7 @@ export const legalChunks = mysqlTable(
     articleText: text("article_text").notNull(),
     tags: json("tags").$type<string[]>().notNull().default([]),
     category: varchar("category", { length: 50 }).notNull(),
+    embedding: json("embedding").$type<number[]>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

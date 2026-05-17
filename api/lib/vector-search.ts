@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // V4 cache (new — richer content, 7 laws)
 const CACHE_V4_PATH   = path.resolve("api/legal-systems/embeddings-cache-v4.json");
@@ -11,7 +10,9 @@ const SOURCE_V4_PATH  = path.resolve("api/legal-systems/v4-chunks.json");
 // V1 source chunks (fallback)
 const SOURCE_V1_PATH  = path.resolve("api/legal-systems/extracted-temp/legal-rag-masaoul/output/chunks.json");
 
-const MODEL = "gemini-embedding-001";
+const OLLAMA_MODEL = "nomic-embed-text"; // dim=768, local (no API key needed)
+const OPENAI_MODEL_SMALL  = "text-embedding-3-small";  // dim=1536
+const OPENAI_MODEL_LARGE  = "text-embedding-3-large";  // dim=3072
 
 export interface EmbeddedChunk {
   id: string;
@@ -53,6 +54,7 @@ let _embeddings: EmbeddedChunk[] | null = null;
 let _officialTexts: Map<string, { law_name: string; domain: string; article_number: string; chapter: string; content: string }> | null = null;
 let _chunkToArticle: Map<string, string> | null = null;
 let _usingV4 = false;
+let _embeddingDim = 768; // detected from first cached chunk
 
 function loadEmbeddings(): EmbeddedChunk[] {
   if (_embeddings) return _embeddings;
@@ -65,6 +67,10 @@ function loadEmbeddings(): EmbeddedChunk[] {
     _usingV4 = false;
   } else {
     return [];
+  }
+  // Detect embedding model from dimension: OpenAI large=3072, small=1536, Ollama=768
+  if (_embeddings!.length > 0) {
+    _embeddingDim = _embeddings![0].embedding?.length ?? 768;
   }
   return _embeddings!;
 }
@@ -133,10 +139,14 @@ export async function vectorSearch(
 
   let queryVec: number[];
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: MODEL });
-    const res = await model.embedContent(query);
-    queryVec = res.embedding.values;
+    // Python fastembed server (paraphrase-multilingual-MiniLM-L12-v2, 384 dims)
+    const res = await fetch("http://localhost:5555/embed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: query }),
+    });
+    const json = await res.json() as { embedding: number[] };
+    queryVec = json.embedding;
   } catch {
     return [];
   }
